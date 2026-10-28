@@ -5,6 +5,14 @@ Leave **Request SignPath signing** unchecked to build an unsigned portable ZIP.
 The workflow is manual: pushes, pull requests, and tags do not start builds or
 signing requests. The workflow token has only contents/actions read permission.
 
+The unsigned hosted build was verified on 28 October 2026 in
+[workflow run #1](https://github.com/WafflesaurusSupreme/ValheimPerformanceCompanion/actions/runs/40788054355).
+The full release checks passed. Its downloaded 0.1.10 portable ZIP contained
+458 files with no CI-only game inputs, and the native launcher's
+`--check-startup` check returned exit 0. Archive SHA-256:
+`A5B88F31F0E6F8D0267AF5039F97B25244CA330B20A3CB44B2C445ED4743EA1C`.
+This run was unsigned; live SignPath signing awaits provider onboarding.
+
 The build uses a standard GitHub-hosted `windows-2025` runner, pinned official
 checkout/upload/SignPath action commits, .NET SDK 10.0.401, Zig 0.16.0, and
 PerfView 3.2.6. Download hashes are committed in `.signpath/tool-sources.json`.
