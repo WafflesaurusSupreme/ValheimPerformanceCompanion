@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>ValheimPerformanceCompanion.Recorder</AssemblyName>
+  </PropertyGroup>
+  <Import Project="../../local.paths.props" Condition="Exists('../../local.paths.props')" />
+  <ItemGroup><Compile Include="../Shared/WindowsPipe.cs" Link="WindowsPipe.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../Shared/IlText.cs" Link="IlText.cs" /></ItemGroup>
+  <ItemGroup>
+    <Reference Include="assembly_valheim"><HintPath>$(GamePath)/valheim_Data/Managed/assembly_valheim.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="assembly_utils"><HintPath>$(GamePath)/valheim_Data/Managed/assembly_utils.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>$(GamePath)/valheim_Data/Managed/UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(GamePath)/valheim_Data/Managed/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.InputLegacyModule"><HintPath>$(GamePath)/valheim_Data/Managed/UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="BepInEx"><HintPath>$(BepInExPath)/BepInEx.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>$(BepInExPath)/0Harmony.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+  <ItemGroup><Reference Update="@(Reference)"><ExternallyResolved>true</ExternallyResolved></Reference></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="$(MSBuildProjectDirectory)/obj/nativegc/VpcGcProbe.dll" LogicalName="VpcGcProbe.dll" /></ItemGroup>
+  <Target Name="BuildGcProbe" BeforeTargets="PrepareForBuild">
+    <Exec Command="powershell -NoProfile -File &quot;$(MSBuildProjectDirectory)/../../BuildGcProbe.ps1&quot; -OutputDirectory &quot;$(MSBuildProjectDirectory)/obj/nativegc&quot;" />
+  </Target>
+</Project>

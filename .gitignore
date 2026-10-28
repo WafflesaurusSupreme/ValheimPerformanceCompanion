@@ -1,0 +1,14 @@
+.tools/
+**/bin/
+**/obj/
+artifacts/
+local.paths.props
+
+CompanionApp/portable/
+**/__pycache__/
+*.pyc
+*.pfx
+*.p12
+*.key
+.env
+.env.*

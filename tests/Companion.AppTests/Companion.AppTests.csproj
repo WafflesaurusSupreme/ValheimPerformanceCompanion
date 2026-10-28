@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF><OutputType>Exe</OutputType><RuntimeIdentifier>win-x64</RuntimeIdentifier></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../../src/Companion.App/Companion.App.csproj" /></ItemGroup>
+  <ItemGroup><None Include="../../src/Companion.App/App.xaml" Link="AppStyles.xaml" CopyToOutputDirectory="Always" /></ItemGroup>
+</Project>

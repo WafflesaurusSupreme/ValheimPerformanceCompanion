@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>WinExe</OutputType><UseWPF>true</UseWPF>
+    <AssemblyName>ValheimPerformanceCompanion</AssemblyName>
+    <AssemblyTitle>Valheim Performance Companion</AssemblyTitle>
+    <Product>Valheim Performance Companion</Product>
+    <Description>Valheim performance capture and diagnostics</Description>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>../../Assets/companion.ico</ApplicationIcon>
+    <RecorderPayloadPath Condition="'$(RecorderPayloadPath)' == ''">../Companion.Recorder/bin/Release/netstandard2.1/ValheimPerformanceCompanion.Recorder.dll</RecorderPayloadPath>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Companion.Core/Companion.Core.csproj" /></ItemGroup>
+  <ItemGroup>
+    <Content Include="../../.tools/PerfView.exe" Link="Tools/PerfView.exe" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(RecorderPayloadPath)" Link="Recorder/ValheimPerformanceCompanion.Recorder.dll" CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" />
+  </ItemGroup>
+</Project>
