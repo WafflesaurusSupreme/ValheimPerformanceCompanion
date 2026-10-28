@@ -1,0 +1,160 @@
+name: Build portable companion
+
+on:
+  workflow_dispatch:
+    inputs:
+      sign_release:
+        description: Request SignPath signing (requires approved account configuration)
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: portable-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  portable:
+    runs-on: windows-2025
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          clean: false
+
+      - name: Check signing prerequisites
+        if: inputs.sign_release
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          SIGNPATH_PROJECT_SLUG: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          SIGNPATH_SIGNING_POLICY_SLUG: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:GITHUB_REF -ne 'refs/heads/main') { throw 'Release signing is restricted to main.' }
+          foreach ($name in @('SIGNPATH_API_TOKEN','SIGNPATH_ORGANIZATION_ID','SIGNPATH_PROJECT_SLUG','SIGNPATH_SIGNING_POLICY_SLUG')) {
+            if (-not [Environment]::GetEnvironmentVariable($name)) { throw "Configure $name after SignPath approves the project." }
+          }
+
+      - name: Test archive and signature rejection
+        run: ./.signpath/Test-BuildSafety.ps1 -OutputDirectory (Join-Path $env:RUNNER_TEMP 'build-safety')
+
+      - name: Install pinned tools and verify encrypted build inputs
+        env:
+          VPC_BUILD_INPUTS_PASSPHRASE: ${{ secrets.VPC_BUILD_INPUTS_PASSPHRASE }}
+        run: ./.signpath/Initialize-HostedBuild.ps1 -WorkDirectory (Join-Path $env:RUNNER_TEMP 'companion-build')
+
+      - name: Build native helper for signing
+        if: inputs.sign_release
+        run: |
+          $native = Join-Path $env:RUNNER_TEMP 'native-unsigned'
+          ./BuildGcProbe.ps1 -OutputDirectory $native
+          Compress-Archive -LiteralPath (Join-Path $native 'VpcGcProbe.dll') -DestinationPath (Join-Path $env:RUNNER_TEMP 'native-unsigned.zip')
+
+      - name: Upload native helper for SignPath
+        if: inputs.sign_release
+        id: native-upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          path: ${{ runner.temp }}/native-unsigned.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Sign native helper before embedding
+        if: inputs.sign_release
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: native-gc-v1
+          github-artifact-id: ${{ steps.native-upload.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 1800
+          output-artifact-directory: ${{ runner.temp }}/native-signed
+
+      - name: Build and run complete regression suite
+        id: build
+        env:
+          SIGN_RELEASE: ${{ inputs.sign_release }}
+        run: |
+          $arguments = @{ GamePath = $env:VPC_GAME_PATH; BepInExPath = $env:VPC_BEPINEX_PATH }
+          if ($env:SIGN_RELEASE -eq 'true') { $arguments.PrebuiltGcProbePath = Join-Path $env:RUNNER_TEMP 'native-signed/VpcGcProbe.dll' }
+          ./Build.ps1 @arguments
+
+      - name: Upload unsigned portable build
+        if: ${{ !inputs.sign_release }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          path: ${{ steps.build.outputs.release-archive }}
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Package first-party signing input
+        if: inputs.sign_release
+        env:
+          PUBLISH_DIRECTORY: ${{ steps.build.outputs.publish-directory }}
+        run: |
+          $files = @(Get-ChildItem -LiteralPath $env:PUBLISH_DIRECTORY | ForEach-Object FullName)
+          Compress-Archive -LiteralPath $files -DestinationPath (Join-Path $env:RUNNER_TEMP 'portable-unsigned.zip')
+
+      - name: Upload portable build for SignPath
+        if: inputs.sign_release
+        id: portable-upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          path: ${{ runner.temp }}/portable-unsigned.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Sign portable build
+        if: inputs.sign_release
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: portable-v1
+          github-artifact-id: ${{ steps.portable-upload.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 1800
+          output-artifact-directory: ${{ runner.temp }}/portable-signed
+
+      - name: Verify signatures, embedded helper and unchanged third-party files
+        if: inputs.sign_release
+        env:
+          PUBLISH_DIRECTORY: ${{ steps.build.outputs.publish-directory }}
+        run: |
+          ./.signpath/Complete-SignedRelease.ps1 -UnsignedDirectory $env:PUBLISH_DIRECTORY -SignedDirectory (Join-Path $env:RUNNER_TEMP 'portable-signed') -NativeGcProbePath (Join-Path $env:RUNNER_TEMP 'native-signed/VpcGcProbe.dll') -OutputDirectory (Join-Path $env:RUNNER_TEMP 'verified-release')
+
+      - name: Upload verified signed portable build
+        if: inputs.sign_release
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          path: ${{ runner.temp }}/verified-release/*-signed.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload signed release checksum
+        if: inputs.sign_release
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          path: ${{ runner.temp }}/verified-release/SHA256SUMS.txt
+          archive: false
+          if-no-files-found: error
+          retention-days: 14

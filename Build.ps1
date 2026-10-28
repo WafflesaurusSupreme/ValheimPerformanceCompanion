@@ -7,13 +7,18 @@ param(
     [switch]$SkipGuiTests,
     [ValidatePattern('^[A-Fa-f0-9]{40}$')][string]$SigningCertificateThumbprint,
     [string]$SignToolPath,
-    [uri]$TimestampServer
+    [uri]$TimestampServer,
+    [string]$PrebuiltGcProbePath
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 if ($FrameworkDependent) { throw 'Framework-dependent packaging is unsupported. The portable native launcher requires the bundled runtime; omit -FrameworkDependent.' }
 if ($SigningCertificateThumbprint -and (-not $SignToolPath -or -not $TimestampServer)) { throw 'Signing requires explicit SignToolPath and TimestampServer.' }
 if (-not $SigningCertificateThumbprint -and ($SignToolPath -or $TimestampServer)) { throw 'Signing options require an explicit SigningCertificateThumbprint.' }
+if ($PrebuiltGcProbePath) {
+    $PrebuiltGcProbePath = (Resolve-Path -LiteralPath $PrebuiltGcProbePath -ErrorAction Stop).Path
+    & (Join-Path $PSScriptRoot '.signpath\Assert-SignedFiles.ps1') -FilePath $PrebuiltGcProbePath
+}
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = 'false'
 $projectRoot = $PSScriptRoot
@@ -26,7 +31,9 @@ $artifacts = Join-Path $projectRoot ('artifacts\build-' + (Get-Date -Format 'yyy
 New-Item -ItemType Directory -Path $artifacts | Out-Null
 Push-Location -LiteralPath $projectRoot
 try {
-    & $sdk build 'src\Companion.Recorder\Companion.Recorder.csproj' -c Release --nologo "-p:GamePath=$GamePath" "-p:BepInExPath=$BepInExPath"
+    $recorderArguments = @('build','src\Companion.Recorder\Companion.Recorder.csproj','-c','Release','--nologo',"-p:GamePath=$GamePath","-p:BepInExPath=$BepInExPath")
+    if ($PrebuiltGcProbePath) { $recorderArguments += "-p:PrebuiltGcProbePath=$PrebuiltGcProbePath" }
+    & $sdk @recorderArguments
     if ($LASTEXITCODE -ne 0) { throw 'Recorder build failed.' }
     & $sdk build 'src\Companion.App\Companion.App.csproj' -c Release --nologo
     if ($LASTEXITCODE -ne 0) { throw 'Desktop build failed.' }
@@ -67,6 +74,12 @@ try {
     $archive = Join-Path $artifacts ("ValheimPerformanceCompanion-$releaseVersion-win-x64.zip")
     Compress-Archive -LiteralPath $publish -DestinationPath $archive
     Get-FileHash -LiteralPath $archive -Algorithm SHA256 | Format-List
+    if ($env:GITHUB_OUTPUT) {
+        foreach ($line in @("publish-directory=$publish", "release-archive=$archive")) {
+            if ($line -match '[\r\n]') { throw 'Invalid build output path.' }
+            Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value $line -Encoding utf8
+        }
+    }
     Write-Output "Release: $archive"
 }
 finally { Pop-Location }

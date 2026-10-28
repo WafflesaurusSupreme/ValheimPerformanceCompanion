@@ -269,7 +269,10 @@ await TestAsync("Controller Monitor lifecycle and duplicate-start preservation",
 });
 Test("Installed discovery finds Steam and profile candidates", () =>
 {
-    DiscoveryResult found = Discovery.Find();
+    string? explicitGame = Environment.GetEnvironmentVariable("VPC_TEST_GAME_ROOT");
+    if (explicitGame is not null) Check(Discovery.IsGame(explicitGame), "Explicit test game candidate is incomplete");
+    DiscoveryResult found = Discovery.Find(explicitGame is null ? [] : [explicitGame]);
+    if (explicitGame is not null) Check(found.Targets.Any(t => string.Equals(Path.GetFullPath(t.GameDirectory), Path.GetFullPath(explicitGame), StringComparison.OrdinalIgnoreCase)), "Explicit candidate not discovered");
     File.WriteAllText(Path.Combine(output, "discovery.json"), JsonSerializer.Serialize(found, new JsonSerializerOptions { WriteIndented = true }));
     Check(found.Targets.Any(t => Discovery.IsGame(t.GameDirectory)), "No installation discovered on this host");
     Check(found.Targets.Where(t => t.ProcessId == null && t.ProfileDirectory != null).All(t => !t.Evidence.StartsWith("Active", StringComparison.Ordinal)), "False active profile");

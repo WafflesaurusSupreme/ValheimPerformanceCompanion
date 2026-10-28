@@ -107,6 +107,6 @@ The native entry point checks the bundled application, recorder, PerfView and ru
 
 Builds and offline tests do not prove Unity lifecycle, gameplay compatibility or measurement overhead. Review `VERIFICATION.md` for the current evidence. This initial release requires in-game validation before relying on it for performance conclusions. It does not automatically modify performance settings, uninstall mods, launch the game, change saves or upload diagnostics.
 
-## SignPath enrollment preparation
+## GitHub builds and SignPath
 
-Source repository: https://github.com/WafflesaurusSupreme/ValheimPerformanceCompanion. The SignPath Foundation application was submitted on 28 October 2026. Approval and hosted-build integration are pending; no SignPath-signed release is available yet. See CODE-SIGNING.md for the intended signing scope and PRIVACY.md for local recording and export behavior.
+Source repository: https://github.com/WafflesaurusSupreme/ValheimPerformanceCompanion. The SignPath Foundation application was submitted on 28 October 2026; approval is pending and no SignPath-signed release is available yet. The manual **Build portable companion** GitHub Actions workflow builds and tests on a GitHub-hosted Windows runner. It defaults to an unsigned build. See [GITHUB_BUILD.md](GITHUB_BUILD.md) for build-input setup and the approval activation checklist, [CODE-SIGNING.md](CODE-SIGNING.md) for signing scope, and [PRIVACY.md](PRIVACY.md) for recording and export behavior.
