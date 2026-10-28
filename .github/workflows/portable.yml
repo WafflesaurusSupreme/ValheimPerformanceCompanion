@@ -48,9 +48,7 @@ jobs:
       - name: Test archive and signature rejection
         run: ./.signpath/Test-BuildSafety.ps1 -OutputDirectory (Join-Path $env:RUNNER_TEMP 'build-safety')
 
-      - name: Install pinned tools and verify encrypted build inputs
-        env:
-          VPC_BUILD_INPUTS_PASSPHRASE: ${{ secrets.VPC_BUILD_INPUTS_PASSPHRASE }}
+      - name: Install pinned tools and verify separate CI build inputs
         run: ./.signpath/Initialize-HostedBuild.ps1 -WorkDirectory (Join-Path $env:RUNNER_TEMP 'companion-build')
 
       - name: Build native helper for signing

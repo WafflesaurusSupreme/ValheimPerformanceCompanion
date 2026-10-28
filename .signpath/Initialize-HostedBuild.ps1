@@ -9,8 +9,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'ArchiveTools.ps1')
 if (-not $PlainInputArchive) {
-    if (-not (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'build-inputs.json') -PathType Leaf)) { throw 'Commit the encrypted build inputs and .signpath/build-inputs.json before running the hosted build. See GITHUB_BUILD.md.' }
-    if (-not $env:VPC_BUILD_INPUTS_PASSPHRASE) { throw 'Configure the repository Actions secret VPC_BUILD_INPUTS_PASSPHRASE before running the hosted build.' }
+    if (-not (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'build-inputs.json') -PathType Leaf)) { throw 'Configure .signpath/build-inputs.json with the separate CI dependency download. See GITHUB_BUILD.md.' }
+    $inputPin = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'build-inputs.json') -Raw | ConvertFrom-Json
+    [uri]$inputUri = $inputPin.Url
+    if ($inputUri.Scheme -ne 'https' -or $inputUri.Host -ne 'github.com' -or -not $inputUri.AbsolutePath.StartsWith('/WafflesaurusSupreme/ValheimPerformanceCompanion/releases/download/ci-inputs-', [StringComparison]::Ordinal)) { throw 'CI build inputs must use the project GitHub release download.' }
 }
 $project = Split-Path -Parent $PSScriptRoot
 $work = [IO.Path]::GetFullPath($WorkDirectory)
@@ -40,16 +42,13 @@ $actualSdk = & (Join-Path $sdk 'dotnet.exe') --version
 if ($LASTEXITCODE -ne 0 -or $actualSdk.Trim() -ne (Get-Content -LiteralPath (Join-Path $project 'global.json') -Raw | ConvertFrom-Json).sdk.version) { throw 'The pinned .NET SDK did not start with the required version.' }
 if ($PlainInputArchive) {
     if (-not $PlainInputHash) { throw 'PlainInputHash is required for a local plaintext archive.' }
-    if ($env:GITHUB_ACTIONS -eq 'true') { throw 'Hosted builds require the committed encrypted input and pinned manifest.' }
+    if ($env:GITHUB_ACTIONS -eq 'true') { throw 'Hosted builds require the committed download URL and hash.' }
     $inputArchive = (Resolve-Path -LiteralPath $PlainInputArchive).Path
     $inputHash = $PlainInputHash
 } else {
-    $inputPin = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'build-inputs.json') -Raw | ConvertFrom-Json
-    $encrypted = Join-Path $PSScriptRoot $inputPin.File
-    if ((Get-FileHash -LiteralPath $encrypted -Algorithm SHA256).Hash -ne $inputPin.EncryptedSHA256) { throw 'Encrypted build inputs do not match the committed hash.' }
     $inputArchive = Join-Path $work 'build-inputs.zip'
-    & (Join-Path $PSScriptRoot 'Invoke-ArchiveEncryption.ps1') -Mode Decrypt -InputFile $encrypted -OutputFile $inputArchive
-    $inputHash = $inputPin.PlainSHA256
+    Save-VerifiedDownload -Uri $inputUri -Path $inputArchive -ExpectedHash $inputPin.SHA256
+    $inputHash = $inputPin.SHA256
 }
 $inputsRoot = Join-Path $work 'inputs'
 Expand-VerifiedArchive -ArchivePath $inputArchive -Destination $inputsRoot -ExpectedHash $inputHash

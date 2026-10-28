@@ -1,0 +1,7 @@
+{
+  "Url": "https://github.com/WafflesaurusSupreme/ValheimPerformanceCompanion/releases/download/ci-inputs-20261028/valheim-build-inputs-20261028.zip",
+  "SHA256": "0028925CC15C37DBBBD72B248868CAB8289CE12C557FF682061A4FA4162AAB88",
+  "Files": 173,
+  "Created": "2026-10-28",
+  "Purpose": "CI build and runtime regression inputs only; excluded from source checkout and portable package"
+}

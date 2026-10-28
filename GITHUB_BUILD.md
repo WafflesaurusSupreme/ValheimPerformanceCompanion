@@ -21,28 +21,25 @@ It excludes the game executable, saves, profile configuration, plugins, logs,
 recordings and credentials. These files are build/test inputs; they are not
 copied into the portable output.
 
-The hosted input is a GnuPG AES-256 encrypted ZIP. Its decryption passphrase must
-be saved as the repository Actions secret `VPC_BUILD_INPUTS_PASSPHRASE`. The
-encrypted filename and the encrypted/plain ZIP hashes belong in
-`.signpath/build-inputs.json`. Never commit the plaintext ZIP or passphrase.
-Git for Windows supplies GnuPG on the Windows runner. The wrapper passes the
-secret through standard input, uses an isolated agent home, and stops that
-agent afterward. The passphrase is exposed only to the initialization step.
+The input ZIP is a separate GitHub release asset labeled **CI build inputs —
+not an application download**, under the `ci-inputs-20261028` pre-release tag.
+Players do not need it. The source checkout and portable application ZIP do not
+include it. The exact download URL and SHA-256 are committed in
+`.signpath/build-inputs.json`. No encryption or build-input secret is required.
 
-Initialization verifies the encrypted hash, authenticated decryption, plaintext
-hash, archive paths/limits and every manifest entry before running build tools
+Initialization verifies the download hash, archive paths/limits and every
+manifest entry before running build tools
 against the inputs. No cached tools are accepted on the hosted runner. An empty
 `valheim.exe` installation marker is created only in the isolated test tree for
 filesystem discovery; it is never executed. Actual Mono tests run the verified
 game runtime and real managed assemblies, without starting the game.
 
-To refresh the input bundle, export to a new local directory, set a newly
-generated random passphrase of at least 32 characters in
-`VPC_BUILD_INPUTS_PASSPHRASE`, and call `Invoke-ArchiveEncryption.ps1 -Mode Encrypt
--InputFile <zip> -OutputFile <new-encrypted-file>`. Commit the encrypted file and
-matching hashes together, then update the Actions secret and run an unsigned
-build. Keep all plaintext exports and local key recovery material outside the
-published source. Review the input manifest before uploading a replacement.
+To refresh the input bundle, export to a new local directory and review the
+manifest. Upload it as a separately named asset under a new CI-input pre-release
+tag, then update the committed URL and SHA-256 and run an unsigned build. Retain
+old snapshots for existing commits. Do not upload the input bundle as a normal
+application release or add it to the portable package or source tree. The
+optional encryption utility in `.signpath/` is not used by this workflow.
 
 ## Checks run for every build
 
