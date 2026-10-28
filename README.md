@@ -89,7 +89,7 @@ The native startup launcher is built with project-local Zig 0.16.0, using C++17 
 
 The desktop targets .NET 10; the recorder targets .NET Standard 2.1 for the installed Unity/Mono host. No third-party GUI packages are used. Microsoft .NET SDK 10.0.401 is pinned by `global.json`; the project-local SDK is under `.tools/dotnet` on the development machine. The .NET Standard 2.1 reference pack is required. PerfView's SHA-256 is pinned in `PerfViewCollector.cs` and recorded in `THIRD-PARTY-NOTICES.md`.
 
-Create `local.paths.props` in the project root with `GamePath` pointing to the Valheim folder and `BepInExPath` pointing to the selected profile's `BepInEx/core`. These are build references only; game assemblies are not redistributed. Host-provided references are explicitly marked externally resolved to avoid traversing unrelated game framework dependencies during build.
+Create `local.paths.props` in the project root with `GamePath` pointing to the Valheim folder and `BepInExPath` pointing to the selected profile's `BepInEx/core`. These are build references only and are excluded from the portable application package. Host-provided references are explicitly marked externally resolved to avoid traversing unrelated game framework dependencies during build. GitHub builds download their reference/runtime snapshot separately as described in [GITHUB_BUILD.md](GITHUB_BUILD.md); players do not need that CI download.
 
 Run `Build.ps1 -GamePath <path> -BepInExPath <path>`. It builds all three projects, runs the regression suite and publishes a portable Windows x64 release with the .NET runtime. The first portable publish restores Microsoft's version-pinned runtime packs from nuget.org. `-LegacyCapture` optionally verifies one existing recording.
 

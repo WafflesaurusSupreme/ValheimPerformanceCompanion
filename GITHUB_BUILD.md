@@ -28,8 +28,8 @@ include it. The exact download URL and SHA-256 are committed in
 `.signpath/build-inputs.json`. No encryption or build-input secret is required.
 
 Initialization verifies the download hash, archive paths/limits and every
-manifest entry before running build tools
-against the inputs. No cached tools are accepted on the hosted runner. An empty
+manifest entry before running build tools against the inputs. No cached tools
+are accepted on the hosted runner. An empty
 `valheim.exe` installation marker is created only in the isolated test tree for
 filesystem discovery; it is never executed. Actual Mono tests run the verified
 game runtime and real managed assemblies, without starting the game.
