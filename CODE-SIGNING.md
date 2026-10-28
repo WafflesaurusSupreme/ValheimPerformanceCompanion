@@ -1,8 +1,8 @@
 # Code signing
 
-SignPath Foundation enrollment is being prepared. No SignPath application has
-been submitted and no sponsored signing certificate has been issued for this
-project. The existing 0.1.10 portable release is unsigned.
+The SignPath Foundation application was submitted on 28 October 2026. Approval
+and hosted-build integration are pending. No sponsored signing certificate has
+been issued for this project. The existing 0.1.10 portable release is unsigned.
 
 The intended signing scope is this project's own Windows executables and
 assemblies, built from the public source repository on GitHub-hosted runners.

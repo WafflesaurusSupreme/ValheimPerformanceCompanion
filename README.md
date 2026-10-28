@@ -1,4 +1,4 @@
-# Valheim Performance Companion 0.1.9
+# Valheim Performance Companion 0.1.10
 
 A Windows x64 WPF companion with a standalone BepInEx recorder, PerfView capture, offline interpretation, comparison and report export. Data stays on your computer unless you export and share it yourself.
 
@@ -109,4 +109,4 @@ Builds and offline tests do not prove Unity lifecycle, gameplay compatibility or
 
 ## SignPath enrollment preparation
 
-Source repository: https://github.com/WafflesaurusSupreme/ValheimPerformanceCompanion. SignPath enrollment is pending; no SignPath-signed release is available yet. See CODE-SIGNING.md for the intended signing scope and PRIVACY.md for local recording and export behavior.
+Source repository: https://github.com/WafflesaurusSupreme/ValheimPerformanceCompanion. The SignPath Foundation application was submitted on 28 October 2026. Approval and hosted-build integration are pending; no SignPath-signed release is available yet. See CODE-SIGNING.md for the intended signing scope and PRIVACY.md for local recording and export behavior.
