@@ -19,7 +19,7 @@ internal static class Program
                 return File.Exists(path) ? Assembly.LoadFrom(path) : null;
             };
             Assembly recorder = Assembly.LoadFrom(args[0]);
-            Check(recorder.GetName().Version == new Version(0, 1, 10, 0), "Recorder version mismatch");
+            Check(recorder.GetName().Version == Assembly.GetExecutingAssembly().GetName().Version, "Recorder version differs from the release under test");
             Type type = recorder.GetType("ValheimPerformanceCompanion.Recorder.NativeGcTrace", true)!;
             const BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Instance;
             MethodInfo begin = type.GetMethod("Begin", flags)!, end = type.GetMethod("End", flags)!;
@@ -55,7 +55,7 @@ internal static class Program
             Check(!(bool)type.GetField("running", flags)!.GetValue(invalid), "Invalid clock started timing");
             Check(!File.Exists(Path.Combine(invalidDirectory, "gc-events.csv")), "Invalid clock exported timestamps");
             Check(File.ReadAllText(Path.Combine(invalidDirectory, "gc-quality.txt")).Contains("alignment unavailable"), "Invalid clock quality warning missing");
-            Console.WriteLine("COMPANION_CLOCK_MONO=PASS version=0.1.10 captures=3 events=" + events + " within capture bounds; invalid observations rejected, bad-anchor capture disabled with quality warning; no PerformancePack/Harmony clock dependency.");
+            Console.WriteLine("COMPANION_CLOCK_MONO=PASS version=" + recorder.GetName().Version + " captures=3 events=" + events + " within capture bounds; invalid observations rejected, bad-anchor capture disabled with quality warning; no PerformancePack/Harmony clock dependency.");
             return 0;
         }
         catch (Exception error) { Console.Error.WriteLine(error); return 1; }

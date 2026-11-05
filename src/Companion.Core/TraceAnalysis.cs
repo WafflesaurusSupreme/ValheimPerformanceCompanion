@@ -14,13 +14,14 @@ public static class TraceAnalysis
 {
     public static TraceSummary Generate(string directory, int processId, CancellationToken cancellation = default)
     {
-        string root = Path.GetFullPath(directory);
-        string metadata = Path.Combine(root, "recorder.json");
-        using var json = JsonDocument.Parse(File.ReadAllText(metadata));
-        DateTimeOffset recorderStart = DateTimeOffset.Parse(json.RootElement.GetProperty("StartUtc").GetString()!, CultureInfo.InvariantCulture);
+        string root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
+        if (AnalysisPublication.TryResume(root, processId, out TraceSummary? resumed)) return resumed!;
+        using var json = JsonDocument.Parse(AnalysisPublication.ReadRecorderMetadata(root));
+        DateTimeOffset recorderStart = AnalysisPublication.ReadRecorderClock(json.RootElement);
         int mainThread = json.RootElement.TryGetProperty("MainThreadId", out var mainProperty) && mainProperty.TryGetInt32(out int mainValue) ? mainValue : 0;
         string cache = Path.Combine(root, "analysis-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(cache);
         string etl = Path.Combine(root, "cpu.etl");
+        string inputTrace = File.Exists(etl) ? etl : Path.Combine(root, "cpu.etl.zip");
         if (!File.Exists(etl))
         {
             using var archive = ZipFile.OpenRead(Path.Combine(root, "cpu.etl.zip"));
@@ -82,12 +83,10 @@ public static class TraceAnalysis
         }
         if (count == 0) throw new InvalidDataException("No CPU samples match the selected process ID. Raw trace retained; no attribution made.");
         var summary = new TraceSummary(processId, count, missing, trace.EventsLost, trace.SessionStartTime.ToUniversalTime(), trace.SessionEndTime.ToUniversalTime());
-        File.Move(temporary, Path.Combine(root, "cpu-samples.csv"));
         waits.Dispose(); disk.Dispose();
-        File.Move(Path.Combine(cache, "thread-waits.csv"), Path.Combine(root, "thread-waits.csv"));
-        File.Move(Path.Combine(cache, "disk-io.csv"), Path.Combine(root, "disk-io.csv"));
-        File.WriteAllText(Path.Combine(root, "trace-coverage.json"), JsonSerializer.Serialize(new { FirstCpuSampleSeconds = firstSample, LastCpuSampleSeconds = lastSample, CpuSamples = count, CompleteWaitIntervals = waitCount, OmittedWaitIntervals = omittedWaits, WaitThreadScope = mainThread > 0 ? "Recorded main thread only" : "All process threads; main identity unavailable", UnfinishedWaitIntervals = pending.Count, DiskEvents = ioCount, trace.EventsLost, Note = "Observed sample extent is not continuous coverage. Missing switch events, waits at trace boundaries and unresolved thread identity limit attribution." }, new JsonSerializerOptions { WriteIndented = true }));
-        File.WriteAllText(Path.Combine(root, "cpu-analysis.json"), JsonSerializer.Serialize(summary, new JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(Path.Combine(cache, "trace-coverage.json"), JsonSerializer.Serialize(new { FirstCpuSampleSeconds = firstSample, LastCpuSampleSeconds = lastSample, CpuSamples = count, CompleteWaitIntervals = waitCount, OmittedWaitIntervals = omittedWaits, WaitThreadScope = mainThread > 0 ? "Recorded main thread only" : "All process threads; main identity unavailable", UnfinishedWaitIntervals = pending.Count, DiskEvents = ioCount, trace.EventsLost, Note = "Observed sample extent is not continuous coverage. Missing switch events, waits at trace boundaries and unresolved thread identity limit attribution." }, new JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(Path.Combine(cache, "cpu-analysis.json"), JsonSerializer.Serialize(summary, new JsonSerializerOptions { WriteIndented = true }));
+        AnalysisPublication.Commit(root, cache, processId, recorderStart, inputTrace);
         return summary;
     }
     private static string Clean(string value) => string.Concat(value.Take(1024).Select(c => char.IsControl(c) ? ' ' : c));

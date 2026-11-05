@@ -19,3 +19,8 @@ Build and signing tools may contact package servers, tool download sites,
 timestamp services and the explicitly configured signing provider when those
 tools are invoked. These operations are separate from recording game performance.
 Any service the user chooses to share files with has its own privacy practices.
+# Installed collector candidate (0.1.11)
+
+The protected Windows collector service performs the same machine-wide ETW collection used by earlier Standard and Deep modes. CPU analysis selects the Valheim PID; raw ETL can contain other processes' activity and file/process metadata. Installing the profiling service authorizes that capability; package identity and caller/game ownership are checked on every request. The BepInEx recorder continues to collect inside Valheim. Raw ETL remains excluded from normal evidence exports unless explicitly selected.
+
+Service traces are staged under `%PROGRAMDATA%/ValheimPerformanceCompanion/Collector/<Windows SID>/<session ID>` with System/Administrators write access and the requesting user's read access. The desktop copies completed traces with the user's own permissions. This installation candidate currently retains protected staging copies; they are not uploaded automatically. Store and code-signing account identity verification is performed directly with the providers, not through the application.

@@ -14,6 +14,12 @@ public partial class App : Application
         base.OnStartup(e);
         if (e.Args.Length == 2 && e.Args[0] == "--collector")
         { Shutdown(await PerfViewCollector.RunHelperAsync(e.Args[1])); return; }
+        if (e.Args.Length == 4 && e.Args[0] == "--check-installed-collector" && int.TryParse(e.Args[1], out int diagnosticPid))
+        { Shutdown(await CollectorDiagnostics.RunAsync(diagnosticPid, e.Args[2], e.Args[3])); return; }
+        if (e.Args.Length == 5 && e.Args[0] == "--check-installed-collector" && e.Args[4] == "restart" && int.TryParse(e.Args[1], out int restartPid))
+        { Shutdown(await CollectorDiagnostics.RunAsync(restartPid, e.Args[2], e.Args[3], restartService: true)); return; }
+        if (e.Args.Length == 3 && e.Args[0] == "--abandon-collector-check" && int.TryParse(e.Args[1], out int orphanPid))
+        { Shutdown(await CollectorDiagnostics.AbandonForVerificationAsync(orphanPid, e.Args[2])); return; }
         DispatcherUnhandledException += (_, args) => { AppLog.Write("Dispatcher exception", args.Exception); MessageBox.Show(args.Exception.Message + "\n\nDiagnostic saved in " + AppLog.DirectoryPath, "Performance Companion", MessageBoxButton.OK, MessageBoxImage.Error); args.Handled = true; };
         bool rendering = e.Args.Length >= 3 && e.Args[0] == "--render";
         if (!rendering) AppLog.State("Starting desktop UI");

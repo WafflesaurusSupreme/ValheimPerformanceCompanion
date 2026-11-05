@@ -31,7 +31,12 @@ internal static class MonoPipeProbe
             for (int attempt = 0; attempt < 2; attempt++)
             using (var pipe = WindowsPipe.CreateServer("ValheimPerformanceCompanion.Recorder." + pid))
             {
-                File.WriteAllText(args[0], pid.ToString());
+                if (attempt == 0)
+                {
+                    string stagedReady = args[0] + "." + Guid.NewGuid().ToString("N") + ".tmp";
+                    File.WriteAllText(stagedReady, pid.ToString());
+                    File.Move(stagedReady, args[0]);
+                }
                 await pipe.WaitForConnectionAsync(timeout.Token);
                 using (var reader = new StreamReader(pipe, Encoding.UTF8, false, 1024, true))
                 using (var writer = new StreamWriter(pipe, new UTF8Encoding(false), 1024, true) { AutoFlush = true })

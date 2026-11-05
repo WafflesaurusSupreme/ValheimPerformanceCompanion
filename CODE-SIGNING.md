@@ -1,8 +1,30 @@
 # Code signing
 
-The SignPath Foundation application was submitted on 28 October 2026. Approval
-is pending. No sponsored signing certificate has
-been issued for this project. The existing 0.1.10 portable release is unsigned.
+The SignPath Foundation application submitted on 28 October 2026 was declined
+because the project lacks the required public visibility. No sponsored certificate
+is pending. The existing 0.1.10 portable release is unsigned and has not been replaced.
+
+0.1.11 adds a Windows collector service and Microsoft Store MSIX packaging. The
+Store signs certified MSIX packages at no signing cost, but the recorder and
+embedded native GC DLL are copied outside the installed package and require
+their own public signatures. The paid-signing limit is less than USD 20 total;
+no paid account or signing resource has been provisioned. Any Artifact Signing
+use must remain within a single Basic billing period, including applicable tax,
+and be cancelled after successful timestamped signing. Account verification and
+Microsoft Store approval remain outstanding.
+
+Production `Build-StorePackage.ps1` rejects unsigned first-party files and checks
+the exact native resource embedded in the recorder. `-ValidationOnly` builds a
+clearly labeled unsigned local-check package and does not assert public trust.
+
+`Sign-AzureFiles.ps1` accepts explicitly supplied Microsoft-signed client tools,
+an existing account's non-secret metadata and an expected verified publisher.
+It does not create paid resources or subscribe. The native GC DLL must be signed
+first, then embedded using `Build.ps1 -PrebuiltGcProbePath` with the actual
+`-ExpectedSigningPublisher`. Sign the seven first-party published files last.
+The signing script's real provider flow remains untested until account validation
+and client-tool setup are available. Do not start billing while Store service
+capability eligibility is unresolved; capability approval is not guaranteed.
 
 The intended signing scope is this project's own Windows executables and
 assemblies, built from the public source repository on GitHub-hosted runners.
@@ -22,7 +44,7 @@ token or private key belongs in this repository. The manual GitHub workflow is
 Signing is restricted to `main` and fails if provider settings are missing.
 
 The signed native helper is checked before building the recorder. After the
-second signing request, all five first-party release files must have valid,
+second signing request, all seven first-party release files must have valid,
 timestamped public signatures from SignPath Foundation. The final check confirms
 that the recorder embeds the exact signed helper and all other packaged files
 are unchanged. A failed or timed-out signing request cannot produce a final

@@ -1,5 +1,15 @@
 # GitHub build and SignPath activation
 
+SignPath Foundation declined the application. Its activation instructions below
+are retained for the existing optional integration, but no Foundation approval or
+certificate is pending. Version 0.1.11 adds an installed collector and a separate
+`Build-StorePackage.ps1` MSIX path. An unsigned development ZIP does not install
+the service and must not be advertised as a warning-free end-user release.
+Microsoft Store account registration, restricted-capability approval, external
+payload signatures and end-to-end Store verification remain outstanding. The
+unsigned 0.1.11 packages are for local validation. The hosted workflow described
+below builds the portable ZIP.
+
 Open **Actions → Build portable companion → Run workflow** on `main`.
 Leave **Request SignPath signing** unchecked to build an unsigned portable ZIP.
 The workflow is manual: pushes, pull requests, and tags do not start builds or
@@ -11,7 +21,7 @@ The full release checks passed. Its downloaded 0.1.10 portable ZIP contained
 458 files with no CI-only game inputs, and the native launcher's
 `--check-startup` check returned exit 0. Archive SHA-256:
 `A5B88F31F0E6F8D0267AF5039F97B25244CA330B20A3CB44B2C445ED4743EA1C`.
-This run was unsigned; live SignPath signing awaits provider onboarding.
+This run was unsigned. SignPath signing requires approved provider credentials.
 
 The build uses a standard GitHub-hosted `windows-2025` runner, pinned official
 checkout/upload/SignPath action commits, .NET SDK 10.0.401, Zig 0.16.0, and
@@ -51,7 +61,8 @@ optional encryption utility in `.signpath/` is not used by this workflow.
 
 ## Checks run for every build
 
-The build runs the core and recovery suites; WPF automatic setup, close,
+The build runs the core, recovery and collector protocol/security suites;
+WPF automatic setup, close,
 history, retry, late-attachment and reconnection tests; and the actual Valheim
 Mono transport, recorder contract, no-Unity-Update and native GC clock tests.
 The build also tests unsafe-archive, hash-mismatch and unsigned-file rejection.

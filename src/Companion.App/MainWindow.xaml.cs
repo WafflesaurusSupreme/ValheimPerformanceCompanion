@@ -232,7 +232,7 @@ public partial class MainWindow : Window
         if (!connected || Targets.SelectedItem is not GameTarget target || target.ProcessId != controller.Pid)
             throw new InvalidOperationException("Connect to the selected game/profile before starting a capture.");
         if (!int.TryParse(Duration.Text, out int seconds) || seconds is < 5 or > 600) throw new ArgumentException("Choose a duration between 5 and 600 seconds.");
-        StatusText.Text = mode == "Monitor" ? "Starting recorder…" : "Starting recorder and PerfView. Approve the Windows collector prompt if shown…";
+        StatusText.Text = mode == "Monitor" ? "Starting recorder…" : "Starting recorder and profiling collector…";
         live.Clear(); await controller.StartAsync(mode, seconds, Scenario.Text);
         StatusText.Text = $"Recording · {mode} · Automatic lag spike detection · console: perf stop"; UpdateControls();
     }
@@ -332,7 +332,7 @@ public partial class MainWindow : Window
     public async Task LoadCaptureAsync(string path, bool remember = true, bool restoreComparison = true)
     {
         StatusText.Text = "Reading capture and correlating evidence…";
-        Capture loaded = await Task.Run(() => CaptureReader.Read(path));
+        Capture loaded = await CaptureReader.ReadWithRecoveryAsync(path);
         capture = loaded;
         currentCapturePath = File.Exists(path) ? Path.GetFullPath(path) : Directory.GetFiles(loaded.Directory, "frames*.csv").Single();
         Comparison.Text = "";
@@ -373,7 +373,7 @@ public partial class MainWindow : Window
     private async Task ShowComparisonAsync(string otherPath)
     {
         if (analysis is null) throw new InvalidOperationException("Open a baseline capture first.");
-        Capture other = await Task.Run(() => CaptureReader.Read(otherPath));
+        Capture other = await CaptureReader.ReadWithRecoveryAsync(otherPath);
         Comparison.Text = Analyzer.Compare(analysis, Analyzer.Analyze(other, analysis.Options));
     }
     private void ApplySavedOptions(AnalysisOptions options)

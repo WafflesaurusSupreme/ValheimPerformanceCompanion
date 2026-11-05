@@ -27,7 +27,7 @@ try {
     if (-not $chain.Build($certificate)) { throw 'The signing certificate is expired, revoked, or does not chain to a trusted root.' }
 } finally { $chain.Dispose() }
 $relativeTargets = @('ValheimPerformanceCompanion.exe', 'ValheimPerformanceCompanionLauncher.exe',
-    'ValheimPerformanceCompanion.dll', 'Companion.Core.dll', 'Recorder\ValheimPerformanceCompanion.Recorder.dll')
+    'ValheimPerformanceCompanion.dll', 'Companion.Core.dll', 'VpcCollectorService.exe', 'VpcCollectorService.dll', 'Recorder\ValheimPerformanceCompanion.Recorder.dll')
 $targets = foreach ($relative in $relativeTargets) {
     $path = Join-Path $publish $relative
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Release component is missing: $relative" }

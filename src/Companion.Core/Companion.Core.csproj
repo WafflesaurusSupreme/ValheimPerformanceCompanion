@@ -2,4 +2,6 @@
   <PropertyGroup><TargetFramework>net10.0-windows</TargetFramework><RuntimeIdentifiers>win-x64</RuntimeIdentifiers><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile><RestoreLockedMode>true</RestoreLockedMode></PropertyGroup>
   <ItemGroup><PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.2.6" /></ItemGroup>
   <ItemGroup><Compile Include="../Shared/WindowsPipe.cs" Link="WindowsPipe.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../Shared/CollectorServiceProtocol.cs" Link="CollectorServiceProtocol.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../Shared/CollectorStaging.cs" Link="CollectorStaging.cs" /></ItemGroup>
 </Project>

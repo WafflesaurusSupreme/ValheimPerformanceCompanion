@@ -21,10 +21,11 @@ using Companion.Transport;
 
 namespace ValheimPerformanceCompanion.Recorder;
 
-[BepInPlugin(Id, "Performance Companion Recorder", "0.1.10")]
+[BepInPlugin(Id, "Performance Companion Recorder", RecorderVersion)]
 public sealed class RecorderPlugin : BaseUnityPlugin
 {
     public const string Id = "tools.valheim.performancecompanion";
+    public const string RecorderVersion = "0.1.11";
     private static RecorderPlugin? instance;
     private static Terminal.ConsoleCommand? ownedCommand;
     private readonly CancellationTokenSource shutdown = new CancellationTokenSource();
@@ -195,7 +196,7 @@ public sealed class RecorderPlugin : BaseUnityPlugin
             {
                 if (!active.Started)
                 {
-                    if (active.PreparationExpired) { lastError = "Capture preparation timed out. Start a new capture and approve the collector prompt."; Stop(); }
+                    if (active.PreparationExpired) { lastError = "Capture preparation timed out. Start a new capture after the installed collector is ready."; Stop(); }
                     return;
                 }
                 active.Sample();
@@ -324,7 +325,7 @@ internal sealed class Recording
         string inventory = string.Join("\n", Chainloader.PluginInfos.Values.Select(p => p.Metadata.GUID + "=" + p.Metadata.Version + "|" + p.Instance.GetType().Assembly.ManifestModule.ModuleVersionId).OrderBy(x => x));
         using var sha = SHA256.Create(); string fingerprint = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(inventory))).Replace("-", "");
         File.WriteAllText(Path.Combine(directory, "plugins.txt"), inventory, new UTF8Encoding(false));
-        receipt = new Receipt { Protocol = 1, SessionId = id, PluginVersion = "0.1.10", Mode = mode,
+        receipt = new Receipt { Protocol = 1, SessionId = id, PluginVersion = RecorderPlugin.RecorderVersion, Mode = mode,
             StopwatchFrequency = Stopwatch.Frequency,
             ProfileFingerprint = fingerprint, GameVersion = typeof(Player).Assembly.GetName().Version?.ToString() ?? "unknown",
             UnityVersion = Application.unityVersion, Graphics = Screen.width + "x" + Screen.height + "; VSync=" + QualitySettings.vSyncCount + "; cap=" + Application.targetFrameRate + "; GPU=" + SystemInfo.graphicsDeviceName,

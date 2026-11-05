@@ -8,7 +8,8 @@ param(
     [ValidatePattern('^[A-Fa-f0-9]{40}$')][string]$SigningCertificateThumbprint,
     [string]$SignToolPath,
     [uri]$TimestampServer,
-    [string]$PrebuiltGcProbePath
+    [string]$PrebuiltGcProbePath,
+    [string]$ExpectedSigningPublisher = 'SignPath Foundation'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -17,7 +18,7 @@ if ($SigningCertificateThumbprint -and (-not $SignToolPath -or -not $TimestampSe
 if (-not $SigningCertificateThumbprint -and ($SignToolPath -or $TimestampServer)) { throw 'Signing options require an explicit SigningCertificateThumbprint.' }
 if ($PrebuiltGcProbePath) {
     $PrebuiltGcProbePath = (Resolve-Path -LiteralPath $PrebuiltGcProbePath -ErrorAction Stop).Path
-    & (Join-Path $PSScriptRoot '.signpath\Assert-SignedFiles.ps1') -FilePath $PrebuiltGcProbePath
+    & (Join-Path $PSScriptRoot '.signpath\Assert-SignedFiles.ps1') -FilePath $PrebuiltGcProbePath -ExpectedPublisher $ExpectedSigningPublisher
 }
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = 'false'
@@ -43,6 +44,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Regression tests failed.' }
     & $sdk run --project 'tests\Companion.ReviewProbes\Companion.ReviewProbes.csproj' -c Release -- (Join-Path $artifacts 'recovery-tests')
     if ($LASTEXITCODE -ne 0) { throw 'Capture recovery regressions failed.' }
+    & $sdk run --project 'tests\Companion.CollectorTests\Companion.CollectorTests.csproj' -c Release
+    if ($LASTEXITCODE -ne 0) { throw 'Collector protocol/security regressions failed.' }
     if (-not $SkipGuiTests) {
     & $sdk run --project 'tests\Companion.AppTests\Companion.AppTests.csproj' -c Release -- (Join-Path $artifacts 'wpf-tests')
     if ($LASTEXITCODE -ne 0) { throw 'WPF automatic setup/timer checks failed.' }
@@ -61,7 +64,9 @@ try {
     $publish = Join-Path $artifacts 'ValheimPerformanceCompanion'
     & $sdk publish 'src\Companion.App\Companion.App.csproj' -c Release -r win-x64 --self-contained true -o $publish --nologo
     if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
-    foreach ($name in @('README.md','THIRD-PARTY-NOTICES.md','PerfView-LICENSE.txt','VERIFICATION.md','ADVERSARIAL-REVIEW-0.1.6.md')) {
+    & $sdk publish 'src\Companion.CollectorService\Companion.CollectorService.csproj' -c Release -r win-x64 --self-contained true -o $publish --nologo
+    if ($LASTEXITCODE -ne 0) { throw 'Profiling service publish failed.' }
+    foreach ($name in @('README.md','PRIVACY.md','CODE-SIGNING.md','GITHUB_BUILD.md','THIRD-PARTY-NOTICES.md','PerfView-LICENSE.txt','VERIFICATION.md','ADVERSARIAL-REVIEW-0.1.6.md')) {
         if (Test-Path -LiteralPath (Join-Path $projectRoot $name)) { Copy-Item -LiteralPath (Join-Path $projectRoot $name) -Destination $publish }
     }
     Copy-Item -LiteralPath (Join-Path $projectRoot 'Licenses') -Destination $publish -Recurse

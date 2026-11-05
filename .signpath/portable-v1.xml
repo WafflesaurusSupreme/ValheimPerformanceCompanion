@@ -5,6 +5,8 @@
     <pe-file path="ValheimPerformanceCompanionLauncher.exe"><authenticode-sign hash-algorithm="sha256" /></pe-file>
     <pe-file path="ValheimPerformanceCompanion.dll"><authenticode-sign hash-algorithm="sha256" /></pe-file>
     <pe-file path="Companion.Core.dll"><authenticode-sign hash-algorithm="sha256" /></pe-file>
+    <pe-file path="VpcCollectorService.exe"><authenticode-sign hash-algorithm="sha256" /></pe-file>
+    <pe-file path="VpcCollectorService.dll"><authenticode-sign hash-algorithm="sha256" /></pe-file>
     <pe-file path="Recorder/ValheimPerformanceCompanion.Recorder.dll"><authenticode-sign hash-algorithm="sha256" /></pe-file>
   </zip-file>
 </artifact-configuration>

@@ -69,7 +69,7 @@ public sealed class CaptureController : IAsyncDisposable
                 Status = await RecorderClient.SendAsync(Pid.Value, "begin\t" + sessionId).ConfigureAwait(false);
                 AdoptOwnedStatus(Status);
                 // The helper's measurement watchdog starts only after the recorder's Begin acknowledgement.
-                await File.WriteAllTextAsync(Path.Combine(SessionDirectory!, "collector-begin.signal"), sessionId).ConfigureAwait(false);
+                await collector!.BeginAsync(collectorRequest).ConfigureAwait(false);
             }
             if (Status.State != "Recording") throw new IOException("The recorder did not confirm an active measurement.");
             await PerfViewCollector.WriteAsync(Path.Combine(SessionDirectory!, "session.json"), new {
@@ -146,10 +146,15 @@ public sealed class CaptureController : IAsyncDisposable
             }
         }
         catch (Exception ex) { pending = ex; Diagnostics.Add("Recorder cleanup unconfirmed: " + ex.Message); }
+        bool collectorResolved = collector is null || collectorRequest is null;
         try
         {
-            if (collector is not null && collectorRequest is not null) await collector.FinishAsync(collectorRequest, Diagnostics).ConfigureAwait(false);
-            if (resolved && SessionDirectory is not null)
+            if (collector is not null && collectorRequest is not null)
+            {
+                await collector.FinishAsync(collectorRequest, Diagnostics).ConfigureAwait(false);
+                collectorResolved = true;
+            }
+            if (resolved && collectorResolved && SessionDirectory is not null)
             {
                 CopyLogTail();
                 await File.WriteAllLinesAsync(Path.Combine(SessionDirectory, "capture-health.txt"), Diagnostics).ConfigureAwait(false);
@@ -158,8 +163,8 @@ public sealed class CaptureController : IAsyncDisposable
         catch (Exception ex) { pending = pending is null ? ex : new AggregateException(pending, ex); }
         finally
         {
-            Active = !resolved;
-            collector?.Dispose(); collector = null; collectorRequest = null;
+            Active = !resolved || !collectorResolved;
+            if (collectorResolved) { collector?.Dispose(); collector = null; collectorRequest = null; }
         }
         if (pending is not null) throw new IOException("Capture cleanup: " + pending.Message, pending);
     }

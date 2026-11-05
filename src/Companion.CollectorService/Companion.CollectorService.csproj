@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>VpcCollectorService</AssemblyName>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ApplicationManifest>service.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Companion.Core/Companion.Core.csproj" /></ItemGroup>
+  <ItemGroup><Compile Include="../Shared/CollectorServiceProtocol.cs" Link="CollectorServiceProtocol.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../Shared/CollectorStaging.cs" Link="CollectorStaging.cs" /></ItemGroup>
+</Project>

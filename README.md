@@ -1,6 +1,8 @@
-# Valheim Performance Companion 0.1.10
+# Valheim Performance Companion 0.1.11 installation candidate
 
 A Windows x64 WPF companion with a standalone BepInEx recorder, PerfView capture, offline interpretation, comparison and report export. Data stays on your computer unless you export and share it yourself.
+
+0.1.11 is an installation candidate, not a certified public release. It moves Standard/Deep collection into a protected Windows service so recording does not request UAC every time. All existing profiling modes and ETW events are retained. Store certification, restricted service-capability approval, public signatures for the recorder/native DLL copied into Valheim, and installed end-to-end testing are still required. Existing 0.1.10 portable downloads have not been replaced.
 
 Version 0.1.10 connects to a compatible recorder already running inside Valheim before checking recorder installation files. Read-only recorder replies remain available when Unity pauses its update loop. Native GC clock alignment from 0.1.9 is retained.
 It maps the Mono stopwatch capture anchor to the native QPC origin, preserving
@@ -11,7 +13,7 @@ trustworthy clock anchor are not silently rebased.
 
 ## Use
 
-1. Run `ValheimPerformanceCompanionLauncher.exe` from the extracted release folder for startup dependency checks. It starts the desktop application, `ValheimPerformanceCompanion.exe`, displayed by Windows as **Valheim Performance Companion**. Keep the complete extracted folder together.
+1. The intended 0.1.11 distribution is a Microsoft Store MSIX installation with one administrator approval for its profiling service. Launch **Valheim Performance Companion** from Start. A development ZIP alone does not install that service and is not a recipient-ready replacement for the installed package. The native launcher retains its bundled-dependency checks; no separate .NET runtime installation is required.
 
    The complete folder can be moved anywhere you can read/run it. Dependencies are resolved beside the executable, independently of the current working directory. Settings are kept under the current user's LocalAppData; no development-machine path is required.
 2. Select your Valheim installation/profile. Steam registry entries, Steam library files, Thunderstore and r2modman profile folders are discovered automatically. Add custom locations using **Locate game** or **Add profile folder**.
@@ -29,7 +31,7 @@ perf status
 perf stop
 ```
 
-The GUI and console control the same capture session. Standard and Deep request Windows elevation for a bounded collector helper. The game, normal GUI and analysis do not need administrator rights. Console operations may take time while PerfView starts or finalizes. A pre-existing `perf` command is preserved rather than overwritten.
+The GUI and console control the same capture session. Standard and Deep use the installed service to run a bounded collector helper; the game, GUI, recorder, analysis and copying of trace results run as the desktop user. The helper runs only from the protected installation directory. The service accepts only the matching installed desktop executable, checks its package identity or administrator authorization, and requires the selected Valheim PID to belong to that user. It accepts no caller-selected executable, command line or output path. Console operations may take time while PerfView starts or finalizes. A pre-existing `perf` command is preserved rather than overwritten.
 
 Standard and Deep prepare the recorder and wait for PerfView readiness before starting the selected measurement duration. Preparation is bounded separately. If an acknowledgement is lost, the app reconciles the exact session and attempts cleanup; if the recorder remains unreachable, Stop stays available to retry. Another session is never stopped as part of this recovery.
 
@@ -69,7 +71,7 @@ Log interpretation recognizes exceptions, generation, spawning and save messages
 
 ## Files and privacy
 
-Recordings are stored under the connected game's `BepInEx/PerformanceCompanion/Captures` directory. Each includes recorder metadata, frames, logs and, where available, Deep CSVs and raw ETW. A bounded helper stops its own uniquely named ETW session when its time limit expires or the game/owning app exits. Do not forcibly terminate the elevated helper during trace finalization.
+Recordings are stored under the connected game's `BepInEx/PerformanceCompanion/Captures` directory. Each includes recorder metadata, frames, logs and, where available, Deep CSVs and raw ETW. The service writes ETW into a protected per-user/session directory under `%PROGRAMDATA%/ValheimPerformanceCompanion/Collector`; the desktop copies completed results into the recording using its own permissions. Protected staging copies are currently retained, including after successful transfer, so this candidate needs additional disk space. A bounded helper stops its own uniquely named ETW session when its time limit expires or the game/owning app exits. Do not forcibly terminate it during trace finalization.
 
 Exports create a new ZIP containing HTML, metrics, every detected spike, a redacted event summary, diagnostics.json, CODEX-INVESTIGATION.md, matching managed IL and redacted measurement CSVs. Existing files are never overwritten. Review the sharing preview. Raw recorder files, logs and ETW require a separate opt-in and are **not redacted**. Automatic redaction covers common user paths, IPv4 addresses, Steam account IDs and token/password fields, not every possible private string.
 
@@ -77,9 +79,13 @@ Custom discovery locations are saved under `%LOCALAPPDATA%/ValheimPerformanceCom
 
 ## Signing and antivirus detections
 
+SignPath Foundation declined this project's application based on public visibility. No Foundation certificate is pending. Store MSIX signing is free after certification; it does not supply separate signatures for the recorder and native helper extracted into a game profile. Production Store packaging therefore checks all first-party signatures and the recorder's exact embedded native helper before producing a submission package. Validation-only packages are explicitly unsigned and must not be sent to recipients.
+
+`Build-StorePackage.ps1` accepts the exact package Identity Name/Publisher from Partner Center. `-ValidationOnly` performs local schema/content checks using an intentionally non-publishable identity and no signing service. Neither command enrolls an account, purchases signing, installs a certificate, changes security settings or installs a service on the development computer. Public signing and Store certification remain external requirements; a local build is not evidence of SmartScreen or vendor clearance.
+
 The no-cost portable build is unsigned. A clean local scan does not establish that Google Drive or another antivirus vendor will accept it. A self-signed test certificate is not a public trust solution; this build does not install certificates, change antivirus settings, use a signing service, or incur a charge by default.
 
-Optional signing uses an existing code-signing certificate in the current user's Personal store. Pass `-SigningCertificateThumbprint`, `-SignToolPath` and `-TimestampServer` to `Build.ps1`. After all build steps, `SignRelease.ps1` signs the two app executables, the app/Core assemblies and the recorder with SHA-256, requires a timestamp, and verifies the selected publisher before packaging. It leaves third-party signatures untouched and rejects self-signed test certificates. This support does not provision a signing identity or guarantee antivirus clearance. Embedded native GC helpers are not separately signed by this step.
+Optional signing uses an existing code-signing certificate in the current user's Personal store. Pass `-SigningCertificateThumbprint`, `-SignToolPath` and `-TimestampServer` to `Build.ps1`. After all build steps, `SignRelease.ps1` signs the three executables, the app/Core/service assemblies and the recorder with SHA-256, requires a timestamp, and verifies the selected publisher before packaging. It leaves third-party signatures untouched and rejects self-signed test certificates. This support does not provision a signing identity or guarantee antivirus clearance. Embedded native GC helpers are not separately signed by this step.
 
 For a disputed malware detection, retain the exact release archive and file SHA-256 values and submit the detected file to the vendor for review. Google Drive's file owner can use Share → Request a review; an unanswered request is not evidence that the file has been cleared. Microsoft submission guidance: https://learn.microsoft.com/en-us/defender-xdr/developer-faq
 
@@ -109,4 +115,4 @@ Builds and offline tests do not prove Unity lifecycle, gameplay compatibility or
 
 ## GitHub builds and SignPath
 
-Source repository: https://github.com/WafflesaurusSupreme/ValheimPerformanceCompanion. The SignPath Foundation application was submitted on 28 October 2026; approval is pending and no SignPath-signed release is available yet. The manual **Build portable companion** GitHub Actions workflow builds and tests on a GitHub-hosted Windows runner. It defaults to an unsigned build. See [GITHUB_BUILD.md](GITHUB_BUILD.md) for build-input setup and the approval activation checklist, [CODE-SIGNING.md](CODE-SIGNING.md) for signing scope, and [PRIVACY.md](PRIVACY.md) for recording and export behavior.
+Source repository: https://github.com/WafflesaurusSupreme/ValheimPerformanceCompanion. SignPath Foundation declined the application; no Foundation certificate is pending. The manual **Build portable companion** GitHub Actions workflow builds and tests on a GitHub-hosted Windows runner and defaults to an unsigned development build. See [GITHUB_BUILD.md](GITHUB_BUILD.md) for the existing build integration, [CODE-SIGNING.md](CODE-SIGNING.md) for current signing and Store prerequisites, and [PRIVACY.md](PRIVACY.md) for recording and export behavior.

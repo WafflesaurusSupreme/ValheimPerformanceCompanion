@@ -13,7 +13,7 @@ $signed = (Resolve-Path -LiteralPath $SignedDirectory).Path
 $original = (Resolve-Path -LiteralPath $UnsignedDirectory).Path
 $destination = [IO.Path]::GetFullPath($OutputDirectory)
 if (Test-Path -LiteralPath $destination) { throw 'Signed release output must be new.' }
-$firstParty = @('ValheimPerformanceCompanion.exe','ValheimPerformanceCompanionLauncher.exe','ValheimPerformanceCompanion.dll','Companion.Core.dll','Recorder/ValheimPerformanceCompanion.Recorder.dll')
+$firstParty = @('ValheimPerformanceCompanion.exe','ValheimPerformanceCompanionLauncher.exe','ValheimPerformanceCompanion.dll','Companion.Core.dll','VpcCollectorService.exe','VpcCollectorService.dll','Recorder/ValheimPerformanceCompanion.Recorder.dll')
 $originalFiles = @(Get-ChildItem -LiteralPath $original -File -Recurse)
 $signedFiles = @(Get-ChildItem -LiteralPath $signed -File -Recurse)
 if ($originalFiles.Count -ne $signedFiles.Count) { throw 'Signing changed the release file count.' }

@@ -96,6 +96,21 @@ await CheckCase("collector-failure", async f =>
     catch (IOException ex) when (ex.Message == "fixture collector failure") { }
     Check(f.BeginUtc == default && f.Stops == 1 && f.Collector.Finished && !controller.Active, "Collector failure left preparation active");
 });
+await CheckCase("collector-finalization-retry", async f =>
+{
+    f.Collector.FinishFailures = 1;
+    await using var controller = new CaptureController(() => f.Collector);
+    await controller.ConnectAsync(Environment.ProcessId);
+    await controller.StartAsync("Standard", 5, "test");
+    try { await controller.StopAsync(); throw new Exception("Expected transfer failure"); }
+    catch (IOException) { }
+    Check(f.Status.State == "Idle" && controller.Active && !f.Collector.Disposed,
+        "Collector finalization failure lost its retryable ownership after the recorder stopped");
+    await controller.StopAsync();
+    Check(!controller.Active && f.Collector.Finished && f.Collector.FinishAttempts == 2 && f.Collector.Disposed,
+        "Collector finalization did not recover on the next Stop");
+    Check(f.Stops == 1 && f.WrongStops == 0, "Finalization retry stopped the recorder again or touched another session");
+});
 await CheckCase("old-recorder", async f =>
 {
     f.Status.SupportsPreparation = false;
@@ -120,6 +135,7 @@ sealed class FakeCollector : ICollectorSession
 {
     internal TimeSpan Delay;
     internal bool Fail, Finished, Disposed;
+    internal int FinishFailures, FinishAttempts;
     internal DateTimeOffset ReadyUtc;
     public void Validate() { }
     public async Task PrepareAsync(CollectorRequest request)
@@ -128,7 +144,13 @@ sealed class FakeCollector : ICollectorSession
         if (Fail) throw new IOException("fixture collector failure");
         ReadyUtc = DateTimeOffset.UtcNow;
     }
-    public Task FinishAsync(CollectorRequest request, List<string> diagnostics) { Finished = true; return Task.CompletedTask; }
+    public Task FinishAsync(CollectorRequest request, List<string> diagnostics)
+    {
+        FinishAttempts++;
+        if (FinishFailures-- > 0) throw new IOException("fixture collector transfer failure");
+        Finished = true; return Task.CompletedTask;
+    }
+    public Task BeginAsync(CollectorRequest request) => File.WriteAllTextAsync(Path.Combine(request.Directory, "collector-begin.signal"), request.SessionId);
     public void Dispose() => Disposed = true;
 }
 sealed class Fixture : IAsyncDisposable

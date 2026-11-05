@@ -1,4 +1,70 @@
-# Verification — 2026-10-28
+# Verification — 2026-10-30
+
+## Version 0.1.11 installed collector candidate
+
+The release is not yet signed or Microsoft Store certified. Local engineering
+checks do not establish public SmartScreen reputation or acceptance by every
+antivirus vendor. No signing subscription/resource has been provisioned; spend
+is USD 0. Existing public 0.1.10 downloads and the live game profile remain unchanged.
+
+An actual protected Program Files installation ran the new LocalSystem service.
+The real desktop executable, running with a filtered unelevated token, collected
+an isolated synthetic workload named valheim without per-capture UAC. The final
+2026-10-30 run passed nine abandoned desktop sessions, then Standard produced
+828 attributed CPU samples. Deep produced 830 CPU samples, 1,857 complete
+context-switch intervals and 794 disk events. A service restart during the next
+capture recovered the retained trace and produced 903 CPU samples. All three
+capture checks returned Success=true, DesktopElevated=false and no collection
+diagnostics. The temporary service was stopped and removed after the test. Its
+binaries and protected staging traces are retained; no files were deleted. This
+checks the service/ETW path, not gameplay or Microsoft Store package activation,
+updates or uninstall. The installed-test app/Core/service/recorder assembly
+hashes match the final full build.
+
+The installed checks exposed and fixed stale DirectoryInfo metadata after
+creation, unelevated access to System-process inspection, early-disconnect
+recovery and discarded fast pipe replies. Peer verification now uses the
+protected SCM service PID/configuration. Reply consumption is acknowledged before
+DisconnectNamedPipe. Forty-nine protocol/security checks include a real Windows
+pipe reconnect and delayed-reply-consumption regression. The service accepts no
+caller-provided executable, shell arguments or output directory; game ownership,
+caller executable, package/administrator authorization and immutable install ACLs
+are checked. Service output is protected and copied by the desktop user's token.
+
+The 43 Core and 29 recovery/timing checks pass. WPF discovery/setup, close,
+history/export, retry, late attachment and reconnect checks pass. Valheim's actual
+Mono runtime passes transport ACL/bidirectional IPC, recorder contracts,
+no-Unity-Update attachment and native GC alignment checks (24 events over three
+bounded clock captures). Recorder metadata and the launcher are version 0.1.11;
+the clock test now compares against its actual release assembly version. A test
+readiness-file publication race was fixed with atomic first-publication.
+
+Astra reviewed the revised service, recovery and packaging sources. Its findings
+were fixed and its final source re-review reported no remaining actionable
+findings. Finalization failures retain controller ownership for retry. Exited
+desktop clients no longer exhaust the service's eight-session index, and retained
+protected requests/results allow recovery after service restart. A new capture
+waits for a departed client's helper to finalize; another live client's capture
+still returns Busy.
+
+Interrupted ETW analysis uses a frozen, hash-bound publication transaction that
+resumes missing exports without replacing conflicting existing files. Recovery
+from a real retained trace and a CPU-CSV-only partial export restored all five
+analysis outputs and preserved the original CSV hash. Loading and recovery,
+including trace hashing, run on a worker thread. These checks do not establish
+performance on every trace size or actual Valheim gameplay.
+
+Microsoft Defender reported no threats in both the existing portable folder and
+the updated candidate, using custom scans with remediation disabled. This does
+not identify the cause of another vendor's flag or establish its clearance.
+
+MakeAppx validated the MSIX schema and every published byte was checked against
+the package contents. Validation packages are explicitly unsigned and use a
+non-publishable identity. Production packaging rejects unsigned first-party
+files and requires public timestamped signatures for the recorder and its exact
+embedded native GC DLL as well as the app/service components. Public signing,
+Store identity, restricted service capability approval, Store certification and
+clean-machine SmartScreen/Smart App Control checks remain outstanding.
 
 ## Version 0.1.10 connection recovery and distribution status
 

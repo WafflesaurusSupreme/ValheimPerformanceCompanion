@@ -13,6 +13,14 @@ if (args.Length > 0 && args[0] == "--workload")
     while (duration.Elapsed.TotalSeconds < 45) { for (int i = 0; i < 100000; i++) value ^= (long)Math.Sqrt(i + value % 100 + 100); Thread.Sleep(2); }
     System.Console.WriteLine(value); return;
 }
+if (args.Length == 2 && args[0] == "--recover-retained-check")
+{
+    Capture recovered = await CaptureReader.ReadWithRecoveryAsync(args[1]);
+    if (recovered.CpuSamples.Count == 0 || !File.Exists(Path.Combine(recovered.Directory, "collector-result.json")))
+        throw new IOException("Retained collector evidence was not restored on capture load.");
+    Console.WriteLine($"PASS automatic retained ETW recovery: {recovered.CpuSamples.Count} CPU samples");
+    return;
+}
 if (args.Length == 3 && args[0] == "--export-check")
 {
     int pid = int.Parse(args[2], CultureInfo.InvariantCulture);

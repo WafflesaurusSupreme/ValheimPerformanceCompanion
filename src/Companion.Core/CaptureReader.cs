@@ -1,11 +1,44 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Companion.Collector;
 
 namespace Companion.Core;
 
 public static partial class CaptureReader
 {
+    public static Task<Capture> ReadWithRecoveryAsync(string input, CancellationToken cancellation = default) =>
+        Task.Run(() => ReadAndRecoverAsync(input, cancellation), cancellation);
+
+    private static async Task<Capture> ReadAndRecoverAsync(string input, CancellationToken cancellation)
+    {
+        string path = Path.GetFullPath(input);
+        string directory = File.Exists(path) ? Path.GetDirectoryName(path)! : path;
+        string requestFile = Path.Combine(directory, "collector-request.json");
+        string? recoveryWarning = null;
+        if (File.Exists(requestFile))
+        {
+            try
+            {
+                var request = CollectorStaging.ReadReceipt<CollectorRequest>(requestFile) with { Directory = directory };
+                cancellation.ThrowIfCancellationRequested();
+                if (!AnalysisPublication.IsComplete(directory, request.GamePid))
+                {
+                    bool localTrace = File.Exists(Path.Combine(directory, "cpu.etl")) || File.Exists(Path.Combine(directory, "cpu.etl.zip"));
+                    bool recovered = localTrace || await CollectorServiceClient.RecoverCompletedAsync(request).ConfigureAwait(false);
+                    if (recovered && File.Exists(Path.Combine(directory, "recorder.json")))
+                        await Task.Run(() => TraceAnalysis.Generate(directory, request.GamePid, cancellation), cancellation).ConfigureAwait(false);
+                }
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
+            { recoveryWarning = "Retained ETW recovery is incomplete: " + error.Message; }
+        }
+        cancellation.ThrowIfCancellationRequested();
+        Capture capture = Read(input, cancellation);
+        if (recoveryWarning is not null) capture.Warnings.Add(recoveryWarning);
+        return capture;
+    }
+
     public static Capture Read(string input, CancellationToken cancellation = default)
     {
         string path = Path.GetFullPath(input);
@@ -48,6 +81,11 @@ public static partial class CaptureReader
         ReadOptional(capture, "configuration-warning.txt", p => capture.Warnings.Add(File.ReadAllText(p)));
         ReadOptional(capture, "deep-quality.txt", p => capture.Warnings.Add(File.ReadAllText(p)));
         ReadOptional(capture, "completed.json", p => ReadMetadata(capture, p));
+        ReadOptional(capture, "collector-result.json", p =>
+        {
+            CollectorResult? result = JsonSerializer.Deserialize<CollectorResult>(File.ReadAllText(p));
+            if (result?.Success != true) capture.Warnings.Add("ETW collector: " + (result?.Message ?? "No valid completion receipt."));
+        });
         ReadOptional(capture, "cpu-analysis.json", p => ReadMetadata(capture, p));
         ReadOptional(capture, "trace-coverage.json", p => ReadMetadata(capture, p));
         ReadOptional(capture, "cpu-samples.csv", p =>
@@ -76,6 +114,11 @@ public static partial class CaptureReader
         if (capture.Metadata.ContainsKey("Protocol") && !File.Exists(Path.Combine(directory, "completed.json")))
             capture.Warnings.Add("Recording has no completion receipt. It may be partial; the last buffered samples may be missing.");
         if (capture.Metadata.TryGetValue("DroppedFrames", out string? dropped) && dropped != "0") capture.Warnings.Add($"Recorder dropped {dropped} samples. Rates span only retained intervals.");
+        if ((capture.Metadata.GetValueOrDefault("Mode") is "Standard" or "Deep") && capture.CpuSamples.Count == 0)
+            capture.Warnings.Add("ETW CPU evidence is missing from this Standard/Deep capture; profiling coverage is incomplete.");
+        if (capture.Metadata.GetValueOrDefault("Mode") == "Deep"
+            && (!File.Exists(Path.Combine(directory, "thread-waits.csv")) || !File.Exists(Path.Combine(directory, "disk-io.csv"))))
+            capture.Warnings.Add("Deep ETW disk/context-switch exports are missing; profiling coverage is incomplete.");
         if (capture.Frames.All(f => f.GpuMs is null)) capture.Warnings.Add("GPU frame timing is unavailable; GPU bottlenecks cannot be established.");
         if (capture.Frames.All(f => f.Focused is null)) capture.Warnings.Add("Focus/player state is unavailable; automatic exclusions cannot be applied.");
         capture.Warnings.Add("Game-loop intervals are not display-presented frames. Method timings are inclusive and must not be summed.");
