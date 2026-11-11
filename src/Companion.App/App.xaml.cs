@@ -12,6 +12,17 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length == 2 && e.Args[0] == "--check-collector-setup")
+        {
+            string? installed = null, failure = null;
+            try { installed = await CollectorSetup.DownloadAndInstallAsync(new Progress<string>(message => AppLog.State(message))); }
+            catch (Exception ex) { failure = ex.ToString(); }
+            await using var result = new FileStream(e.Args[1], FileMode.CreateNew);
+            await System.Text.Json.JsonSerializer.SerializeAsync(result, new { Success = failure is null, Application = installed, Error = failure });
+            Shutdown(failure is null ? 0 : 1); return;
+        }
+        if (e.Args.Length == 4 && e.Args[0] == "--install-collector")
+        { Shutdown(await CollectorSetup.InstallAsync(e.Args[1], e.Args[2], e.Args[3])); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--collector")
         { Shutdown(await PerfViewCollector.RunHelperAsync(e.Args[1])); return; }
         if (e.Args.Length == 4 && e.Args[0] == "--check-installed-collector" && int.TryParse(e.Args[1], out int diagnosticPid))
@@ -60,4 +71,10 @@ public partial class App : Application
     }
     protected override void OnExit(ExitEventArgs e)
     { guiInstance?.ReleaseMutex(); guiInstance?.Dispose(); base.OnExit(e); }
+    public void OpenInstalledApplication(string path)
+    {
+        guiInstance?.ReleaseMutex(); guiInstance?.Dispose(); guiInstance = null;
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(path) });
+        Shutdown();
+    }
 }

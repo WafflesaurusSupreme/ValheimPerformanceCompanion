@@ -9,6 +9,12 @@
   <TabControl x:Name="Tabs" Grid.Row="1" SelectionChanged="PageChanged">
    <TabItem Header="Record">
     <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+     <Border x:Name="CollectorSetupPanel" Style="{StaticResource Card}" Visibility="Collapsed" Margin="0,0,0,16"><StackPanel>
+      <TextBlock Text="Set up Standard and Deep recording" FontSize="20" FontWeight="SemiBold"/>
+      <TextBlock x:Name="CollectorExplanation" Style="{StaticResource Muted}" Margin="0,10,0,12"/>
+      <TextBlock x:Name="CollectorSetupStatus" Text="Recording support is not installed." TextWrapping="Wrap" Margin="0,0,0,12"/>
+      <Button x:Name="CollectorSetupButton" Content="Download and install recording support" Click="InstallCollector" HorizontalAlignment="Left"/>
+     </StackPanel></Border>
      <Border Style="{StaticResource Card}"><StackPanel>
       <TextBlock Text="YOUR GAME" Foreground="{StaticResource MutedBrush}" FontSize="11" FontWeight="Bold"/>
       <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>

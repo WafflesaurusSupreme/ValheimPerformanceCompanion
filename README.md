@@ -1,8 +1,8 @@
-# Valheim Performance Companion 0.1.12 installation candidate
+# Valheim Performance Companion 0.1.13 installation candidate
 
 A Windows x64 WPF companion with a standalone BepInEx recorder, PerfView capture, offline interpretation, comparison and report export. Data stays on your computer unless you export and share it yourself.
 
-0.1.12 adds a recording table to Compare, with timestamps and scenario notes, and starts both capture file pickers in the previous capture's folder. It retains 0.1.11's protected Windows service for Standard/Deep collection so recording does not request UAC every time. All existing profiling modes and ETW events are retained. Store certification, restricted service-capability approval, public signatures for the recorder/native DLL copied into Valheim, and installed end-to-end testing are still required. Existing public downloads have not been replaced.
+0.1.13 checks for the collector service at startup. When it is missing, an on-screen explanation describes PerfView, system profiling permissions, privacy and the Monitor/offline fallback. The app automatically downloads the matching official GitHub release, verifies its SHA-256 identity and requests one administrator approval to install recording support. After setup, it opens the protected installed copy. Existing collectors do not display the setup explanation or trigger a download. The Compare recording table and previous-capture folder defaults from 0.1.12 are retained.
 
 Version 0.1.10 connects to a compatible recorder already running inside Valheim before checking recorder installation files. Read-only recorder replies remain available when Unity pauses its update loop. Native GC clock alignment from 0.1.9 is retained.
 It maps the Mono stopwatch capture anchor to the native QPC origin, preserving
@@ -13,7 +13,7 @@ trustworthy clock anchor are not silently rebased.
 
 ## Use
 
-1. The intended distribution is a Microsoft Store MSIX installation with one administrator approval for its profiling service. Launch **Valheim Performance Companion** from Start. A development ZIP alone does not install that service and is not a recipient-ready replacement for the installed package. The native launcher retains its bundled-dependency checks; no separate .NET runtime installation is required.
+1. Extract the entire ZIP and run **ValheimPerformanceCompanionLauncher.exe**. If recording support is missing, the companion explains and downloads it automatically. Approve the Windows administrator prompt to install the protected app and collector service. If you decline or the download fails, Monitor mode and opening/comparing existing recordings remain available; use **Download and install recording support** to retry. The matching `v<version>-preview.1` release must be published with GitHub's SHA-256 asset digest. The elevated installer independently verifies that official digest, rejects unsafe ZIP paths and creates a protected versioned folder under Program Files. Existing files and recordings are preserved. The native launcher checks bundled dependencies; no separate .NET installation is required.
 
    The complete folder can be moved anywhere you can read/run it. Dependencies are resolved beside the executable, independently of the current working directory. Settings are kept under the current user's LocalAppData; no development-machine path is required.
 2. Select your Valheim installation/profile. Steam registry entries, Steam library files, Thunderstore and r2modman profile folders are discovered automatically. Add custom locations using **Locate game** or **Add profile folder**.

@@ -32,6 +32,8 @@ internal static class Program
             try
             {
                 string root = Path.GetFullPath(args[0]); Directory.CreateDirectory(root);
+                if (args.Length > 1 && args[1] == "--collector-setup")
+                { await CollectorSetupTests.RunAsync(root); app.Shutdown(0); return; }
                 if (args.Length > 1 && args[1] == "--compare-library")
                 {
                     await CompareLibraryTests.RunAsync(root);

@@ -1,5 +1,22 @@
 # Verification — 2026-11-10
 
+## Version 0.1.13 automatic collector setup
+
+Startup checks the Windows service registry before displaying any setup notice.
+An installed collector skips the notice and download. A missing collector shows
+the PerfView/permissions/privacy explanation and starts the matching official
+GitHub release download. SHA-256, bounded download/extraction, safe paths and
+protected Program Files installation are enforced. The elevated installer checks
+the official release digest independently and leaves existing files intact.
+Administrator refusal/download failure preserves Monitor and offline analysis.
+
+The release build passes the existing Core, recovery, collector, WPF and Valheim
+Mono suites. New isolated tests verify startup's installed/missing branches,
+conditional explanation visibility, official URL/digest validation, absent release,
+metadata limits, and ZIP traversal/case-collision/alternate-stream rejection.
+Default tests do not unregister the actual collector; installed bootstrap checks
+are performed separately with explicit authorization.
+
 ## Version 0.1.12 Compare recording library
 
 Compare discovers recordings before any comparison pair exists, including legacy

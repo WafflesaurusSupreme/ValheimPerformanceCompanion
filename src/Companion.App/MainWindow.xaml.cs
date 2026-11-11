@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Net.Http;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -41,7 +42,7 @@ public partial class MainWindow : Window
         historyEnabled = !rendering || historyOverride is not null;
         InitializeComponent();
         Timeline.FrameSelected += SelectFrame;
-        if (!rendering) Loaded += async (_, _) => { await RunAsync(async () => { await RefreshAsync(); await RestoreHistoryAsync(); }); timer.Start(); };
+        if (!rendering) Loaded += async (_, _) => { await RunAsync(async () => { await CheckCollectorAtStartupAsync(); if (closing) return; await RefreshAsync(); await RestoreHistoryAsync(); }); if (!closing) timer.Start(); };
         discoveryTimer.Tick += async (_, _) => await BackgroundRefreshAsync();
         timer.Tick += async (_, _) =>
         {
@@ -58,6 +59,29 @@ public partial class MainWindow : Window
         catch (Exception ex) when (ex is IOException or JsonException) { StatusText.Text = "Saved locations could not be read: " + ex.Message; }
     }
     public async Task PrepareRecordPreviewAsync() { await RefreshAsync(); Tabs.SelectedIndex = 0; }
+    public void ShowCollectorSetupState(bool installed)
+    {
+        CollectorSetupPanel.Visibility = installed ? Visibility.Collapsed : Visibility.Visible;
+        CollectorExplanation.Text = installed ? "" : CollectorSetup.Explanation;
+    }
+    private async Task CheckCollectorAtStartupAsync()
+    {
+        await CollectorSetup.CheckAtStartupAsync(ShowCollectorSetupState, SetUpCollectorAsync);
+    }
+    private async void InstallCollector(object sender, RoutedEventArgs e) => await RunAsync(SetUpCollectorAsync);
+    private async Task SetUpCollectorAsync()
+    {
+        try
+        {
+            string application = await CollectorSetup.DownloadAndInstallAsync(new Progress<string>(message => CollectorSetupStatus.Text = message));
+            await controller.DisposeAsync(); timer.Stop(); discoveryTimer.Stop(); closing = true; closeReady = true;
+            ((App)Application.Current).OpenInstalledApplication(application);
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
+        { CollectorSetupStatus.Text = "Administrator approval was declined. Monitor and existing recordings remain available. You can retry setup below."; }
+        catch (Exception ex) when (ex is IOException or HttpRequestException or UnauthorizedAccessException or JsonException or InvalidDataException or OperationCanceledException)
+        { CollectorSetupStatus.Text = "Recording support could not be installed: " + ex.Message + " Monitor and existing recordings remain available. Retry setup below."; AppLog.Write("Collector setup", ex); }
+    }
     private async Task RunAsync(Func<Task> action)
     {
         if (busy) { StatusText.Text = "Finishing the current operation. Please try again when it completes."; return; }
@@ -79,6 +103,7 @@ public partial class MainWindow : Window
         ChooseComparisonButton.IsEnabled = !busy && analysis is not null;
         OpenSavedComparisonButton.IsEnabled = !busy && PreviousComparisons.SelectedItem is SavedComparison;
         RefreshCapturesButton.IsEnabled = !busy;
+        CollectorSetupButton.IsEnabled = !busy && !controller.Active;
         ConnectButton.Content = connected ? "Connected" : waitingForExit ? "Waiting for game to close" : "Check now";
         ActivityProgress.IsIndeterminate = busy;
         ActivityProgress.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
@@ -237,6 +262,8 @@ public partial class MainWindow : Window
     private async void StartCapture(object sender, RoutedEventArgs e) => await RunAsync(() => StartAsync(ModeName));
     private async Task StartAsync(string mode)
     {
+        if (mode != "Monitor" && !await Task.Run(CollectorSetup.IsInstalled))
+        { ShowCollectorSetupState(false); Tabs.SelectedIndex = 0; await SetUpCollectorAsync(); if (!closing) throw new InvalidOperationException("Standard/Deep recording support is not installed. Complete setup above, or choose Monitor."); return; }
         if (!connected || Targets.SelectedItem is not GameTarget target || target.ProcessId != controller.Pid)
             throw new InvalidOperationException("Connect to the selected game/profile before starting a capture.");
         if (!int.TryParse(Duration.Text, out int seconds) || seconds is < 5 or > 600) throw new ArgumentException("Choose a duration between 5 and 600 seconds.");
