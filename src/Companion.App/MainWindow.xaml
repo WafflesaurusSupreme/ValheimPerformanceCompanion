@@ -6,7 +6,7 @@
    <StackPanel><TextBlock Text="VALHEIM  /  DIAGNOSTICS" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="Bold"/><TextBlock Text="Performance Companion" FontSize="29" FontWeight="SemiBold" Margin="0,5,0,0"/><TextBlock Text="Find the moment. Understand the evidence." Style="{StaticResource Muted}" Margin="0,5,0,0"/></StackPanel>
    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"><Button x:Name="OpenCaptureButton" Content="Open capture" Click="OpenCapture"/><Button x:Name="ExportReportButton" Content="Export report" Click="ExportReport"/></StackPanel>
   </Grid>
-  <TabControl x:Name="Tabs" Grid.Row="1">
+  <TabControl x:Name="Tabs" Grid.Row="1" SelectionChanged="PageChanged">
    <TabItem Header="Record">
     <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
      <Border Style="{StaticResource Card}"><StackPanel>
@@ -73,7 +73,35 @@
      <Expander Header="Capture quality and measurement limits" Foreground="#CDD7E6" Margin="0,10"><TextBlock x:Name="Quality" Style="{StaticResource Muted}" Margin="0,10"/></Expander>
     </StackPanel></ScrollViewer>
    </TabItem>
-    <TabItem Header="Compare"><StackPanel><Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="Compare the same scenario" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="The current result is your baseline. Open another capture to compare pacing and lag spike frequency. Use the same route, world state and capture mode." Style="{StaticResource Muted}" Margin="0,10,0,18"/><WrapPanel><ComboBox x:Name="PreviousComparisons" Width="410" DisplayMemberPath="Label" ToolTip="Saved baseline and comparison pairs"/><Button Content="Open previous comparison" Click="OpenSavedComparison"/><Button Content="Choose comparison capture" Click="ChooseComparison"/></WrapPanel><TextBlock x:Name="Comparison" Margin="0,20,0,0" FontSize="17" LineHeight="28"/></StackPanel></Border></StackPanel></TabItem>
+   <TabItem Header="Compare">
+    <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+     <Border Style="{StaticResource Card}"><StackPanel>
+      <TextBlock Text="Compare the same scenario" FontSize="22" FontWeight="SemiBold"/>
+      <TextBlock Text="Open a recording as your baseline, then select another and compare. Use the same route, world state and capture mode." Style="{StaticResource Muted}" Margin="0,10,0,12"/>
+      <TextBlock x:Name="ComparisonBaseline" Text="Baseline: open a recording below to begin." FontWeight="SemiBold" Margin="0,0,0,16"/>
+      <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Saved recordings" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center"/><Button x:Name="RefreshCapturesButton" Grid.Column="1" Content="Refresh recordings" Click="RefreshCaptureLibrary"/></Grid>
+      <TextBlock x:Name="CaptureLibraryLocation" Style="{StaticResource Muted}" FontSize="12" Margin="0,6,0,10"/>
+      <DataGrid x:Name="ComparisonCaptures" Height="235" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" CanUserResizeRows="False" HeadersVisibility="Column" SelectionMode="Single" SelectionUnit="FullRow" SelectionChanged="CaptureSelectionChanged" Background="#111A26" Foreground="#EEF3FA" BorderBrush="{StaticResource BorderBrush}" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{StaticResource BorderBrush}" RowBackground="#111A26" AlternatingRowBackground="#192230" ScrollViewer.VerticalScrollBarVisibility="Auto">
+       <DataGrid.Resources>
+        <Style TargetType="DataGridColumnHeader"><Setter Property="Background" Value="#243348"/><Setter Property="Foreground" Value="#EEF3FA"/><Setter Property="Padding" Value="10,9"/><Setter Property="BorderThickness" Value="0"/></Style>
+        <Style TargetType="DataGridCell"><Setter Property="Padding" Value="8,7"/><Setter Property="BorderThickness" Value="0"/><Style.Triggers><Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="#304E61"/><Setter Property="Foreground" Value="#FFFFFF"/></Trigger></Style.Triggers></Style>
+        <Style TargetType="DataGridRow"><Setter Property="ToolTip"><Setter.Value><TextBlock><Run Text="{Binding Path, Mode=OneWay}"/><LineBreak/><Run Text="{Binding MetadataWarning, Mode=OneWay}"/></TextBlock></Setter.Value></Setter></Style>
+       </DataGrid.Resources>
+       <DataGrid.Columns>
+        <DataGridTextColumn Header="Recorded (local time)" Binding="{Binding Timestamp}" SortMemberPath="StartedUtc" Width="170"/>
+        <DataGridTextColumn Header="Mode" Binding="{Binding Mode}" Width="85"/>
+        <DataGridTemplateColumn Header="Scenario / test notes" SortMemberPath="Scenario" Width="*" MinWidth="180"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Scenario}" TextWrapping="Wrap"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+        <DataGridTextColumn Header="Recording" Binding="{Binding RecordingName}" Width="240"/>
+       </DataGrid.Columns>
+      </DataGrid>
+      <TextBlock x:Name="CaptureLibraryStatus" Style="{StaticResource Muted}" Margin="0,8,0,12"/>
+      <WrapPanel><Button x:Name="OpenSelectedCaptureButton" Content="Open selected as baseline" Click="OpenSelectedCapture" IsEnabled="False"/><Button x:Name="CompareSelectedCaptureButton" Content="Compare selected recording" Click="CompareSelectedCapture" IsEnabled="False"/><Button x:Name="ChooseComparisonButton" Content="Choose comparison capture" Click="ChooseComparison" IsEnabled="False"/></WrapPanel>
+      <TextBlock x:Name="SavedComparisonStatus" Style="{StaticResource Muted}" Margin="0,18,0,8" Text="No saved comparisons yet. Select two recordings above to create one."/>
+      <WrapPanel x:Name="SavedComparisonPanel" Visibility="Collapsed"><ComboBox x:Name="PreviousComparisons" Width="410" DisplayMemberPath="Label" SelectionChanged="CaptureSelectionChanged" ToolTip="Saved baseline and comparison pairs"/><Button x:Name="OpenSavedComparisonButton" Content="Open previous comparison" Click="OpenSavedComparison" IsEnabled="False"/></WrapPanel>
+      <TextBlock x:Name="Comparison" Margin="0,20,0,0" FontSize="17" LineHeight="28"/>
+     </StackPanel></Border>
+    </StackPanel></ScrollViewer>
+   </TabItem>
   </TabControl>
   <Border Grid.Row="2" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,16,0,0"><TextBlock x:Name="StatusText" Text="Ready · Local processing · Nothing uploaded" Style="{StaticResource Muted}" FontSize="12"/></Border>
  </Grid>

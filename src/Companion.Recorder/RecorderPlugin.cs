@@ -25,7 +25,7 @@ namespace ValheimPerformanceCompanion.Recorder;
 public sealed class RecorderPlugin : BaseUnityPlugin
 {
     public const string Id = "tools.valheim.performancecompanion";
-    public const string RecorderVersion = "0.1.11";
+    public const string RecorderVersion = "0.1.12";
     private static RecorderPlugin? instance;
     private static Terminal.ConsoleCommand? ownedCommand;
     private readonly CancellationTokenSource shutdown = new CancellationTokenSource();

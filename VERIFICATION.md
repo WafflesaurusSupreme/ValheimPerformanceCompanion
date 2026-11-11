@@ -1,4 +1,29 @@
-# Verification — 2026-10-30
+# Verification — 2026-11-10
+
+## Version 0.1.12 Compare recording library
+
+Compare discovers recordings before any comparison pair exists, including legacy
+CSV files in the capture root and more than 30 recordings in the selected profile.
+The table displays local capture timestamps, mode and available scenario notes.
+Both capture pickers start in the previous capture's folder. Saved comparisons
+can be reopened; unavailable actions are disabled and empty states are explained.
+Existing history JSON and the public history-read contract are preserved.
+
+The new isolated WPF regression failed against the previous discovery behavior
+and passes after the repair. It covers default-folder discovery, metadata and
+legacy timestamps, damaged metadata/history, empty folders, table baseline and
+comparison actions, saved-pair reopening, busy state, refresh, direct BepInEx
+discovery and picker folder defaults. The rendered Compare page was inspected.
+The release build passes 43 Core, 29 recovery/timing and 49 collector checks,
+the existing WPF discovery/setup, close, history/export, retry, late-attachment
+and reconnect checks, and the new Compare regression. Valheim Mono transport,
+recorder contracts and native GC clock checks pass (24 events in three bounded
+clock captures). These checks use isolated fixtures and do not launch Valheim.
+
+The 0.1.12 portable ZIP is a local unsigned build. This work does not install it,
+replace a live recorder or publish a release. The native Windows file pickers
+were not manually operated; their configured starting folders were checked by
+the WPF regression. Installed-app and gameplay verification remain unperformed.
 
 ## Version 0.1.11 installed collector candidate
 

@@ -53,6 +53,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'WPF close regression failed.' }
     & $sdk run --project 'tests\Companion.AppTests\Companion.AppTests.csproj' -c Release -- (Join-Path $artifacts 'history-tests') --history
     if ($LASTEXITCODE -ne 0) { throw 'Capture history regression failed.' }
+    & $sdk run --project 'tests\Companion.AppTests\Companion.AppTests.csproj' -c Release -- (Join-Path $artifacts 'compare-library-tests') --compare-library
+    if ($LASTEXITCODE -ne 0) { throw 'Compare recording library regression failed.' }
     & $sdk run --project 'tests\Companion.AppTests\Companion.AppTests.csproj' -c Release -- (Join-Path $artifacts 'retry-tests') --retry
     if ($LASTEXITCODE -ne 0) { throw 'WPF slow-start retry regression failed.' }
     & $sdk run --project 'tests\Companion.AppTests\Companion.AppTests.csproj' -c Release -- (Join-Path $artifacts 'late-attach-tests') --late-attach

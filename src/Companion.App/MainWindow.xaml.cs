@@ -30,6 +30,7 @@ public partial class MainWindow : Window
     private string? currentCapturePath;
     private readonly CaptureHistory history;
     private readonly bool historyEnabled;
+    private string? CaptureBaseDirectory => preferredTarget?.ProfileDirectory ?? preferredTarget?.GameDirectory;
     private bool busy, polling, closing, closeReady;
     private string ModeName => (Mode.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Standard";
     private string SettingsFile => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ValheimPerformanceCompanion", "settings.json");
@@ -72,6 +73,12 @@ public partial class MainWindow : Window
         ConnectButton.IsEnabled = !busy && !connected && !waitingForExit;
         OpenCaptureButton.IsEnabled = !busy;
         ExportReportButton.IsEnabled = !busy;
+        OpenSelectedCaptureButton.IsEnabled = !busy && ComparisonCaptures.SelectedItem is RecentCapture;
+        CompareSelectedCaptureButton.IsEnabled = !busy && analysis is not null && ComparisonCaptures.SelectedItem is RecentCapture selected
+            && !string.Equals(selected.Path, currentCapturePath, StringComparison.OrdinalIgnoreCase);
+        ChooseComparisonButton.IsEnabled = !busy && analysis is not null;
+        OpenSavedComparisonButton.IsEnabled = !busy && PreviousComparisons.SelectedItem is SavedComparison;
+        RefreshCapturesButton.IsEnabled = !busy;
         ConnectButton.Content = connected ? "Connected" : waitingForExit ? "Waiting for game to close" : "Check now";
         ActivityProgress.IsIndeterminate = busy;
         ActivityProgress.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
@@ -89,6 +96,7 @@ public partial class MainWindow : Window
         updatingTargets = true;
         try { Targets.ItemsSource = items; Targets.SelectedItem = selected; }
         finally { updatingTargets = false; }
+        if (!preview) { preferredTarget = selected; RefreshHistory(); }
         StatusText.Text = result.Notes.Count > 0 ? string.Join(" · ", result.Notes) : $"Found {result.Targets.Count} installation/profile candidates. Closed-game profiles are candidates, not verified active.";
         if (selected is null)
         {
@@ -109,7 +117,7 @@ public partial class MainWindow : Window
         if (updatingTargets || preview) return;
         selectionPinned = true;
         preferredTarget = target;
-        await RunAsync(async () => { SaveSelectedTarget(); await PrepareTargetAsync(target); RefreshHistory(); });
+        await RunAsync(async () => { RefreshHistory(); SaveSelectedTarget(); await PrepareTargetAsync(target); });
     }
     private async void Connect(object sender, RoutedEventArgs e) => await RunAsync(RefreshAsync);
     private void SaveSelectedTarget()
@@ -297,7 +305,19 @@ public partial class MainWindow : Window
         }
         finally { polling = false; }
     }
-    private static OpenFileDialog CaptureDialog() => new() { Title = "Open an existing frame recording", Filter = "Frame recording|frames*.csv|CSV files|*.csv", CheckFileExists = true };
+    private OpenFileDialog CaptureDialog()
+    {
+        var snapshot = history.Read(CaptureBaseDirectory);
+        string? previous = currentCapturePath is not null && File.Exists(currentCapturePath) ? currentCapturePath
+            : snapshot.LastOpened ?? snapshot.Recent.FirstOrDefault()?.Path;
+        string? root = CaptureHistory.CaptureRoot(CaptureBaseDirectory);
+        string directory = previous is not null ? Path.GetDirectoryName(previous)!
+            : root is not null && Directory.Exists(root) ? root
+            : CaptureBaseDirectory is not null && Directory.Exists(CaptureBaseDirectory) ? CaptureBaseDirectory
+            : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        return new() { Title = "Open an existing frame recording", Filter = "Frame recording|frames*.csv|CSV files|*.csv",
+            CheckFileExists = true, InitialDirectory = directory, RestoreDirectory = true };
+    }
     private async void OpenCapture(object sender, RoutedEventArgs e) => await RunAsync(async () =>
     {
         StatusText.Text = "Choose an existing capture to open…";
@@ -308,15 +328,53 @@ public partial class MainWindow : Window
     private void RefreshHistory()
     {
         if (!historyEnabled) return;
-        var snapshot = history.Read(preferredTarget?.ProfileDirectory);
+        string? selectedPath = (ComparisonCaptures.SelectedItem as RecentCapture)?.Path;
+        SavedComparison? selectedPair = PreviousComparisons.SelectedItem as SavedComparison;
+        var snapshot = history.ReadLibrary(CaptureBaseDirectory);
         RecentCaptures.ItemsSource = snapshot.Recent;
         RecentCaptures.SelectedItem = snapshot.Recent.FirstOrDefault(item => string.Equals(item.Path, currentCapturePath, StringComparison.OrdinalIgnoreCase)) ?? snapshot.Recent.FirstOrDefault();
+        ComparisonCaptures.ItemsSource = snapshot.Recent;
+        ComparisonCaptures.SelectedItem = snapshot.Recent.FirstOrDefault(item => string.Equals(item.Path, selectedPath, StringComparison.OrdinalIgnoreCase))
+            ?? snapshot.Recent.FirstOrDefault(item => !string.Equals(item.Path, currentCapturePath, StringComparison.OrdinalIgnoreCase)) ?? snapshot.Recent.FirstOrDefault();
+        RecentCapture? baseline = snapshot.Recent.FirstOrDefault(item => string.Equals(item.Path, currentCapturePath, StringComparison.OrdinalIgnoreCase));
+        ComparisonBaseline.Text = baseline is null ? "Baseline: open a recording below to begin."
+            : $"Baseline: {baseline.Timestamp} · {baseline.RecordingName}" + (string.IsNullOrWhiteSpace(baseline.Scenario) ? "" : " · " + baseline.Scenario);
+        CaptureLibraryLocation.Text = CaptureHistory.CaptureRoot(CaptureBaseDirectory) is string root
+            ? "Capture folder: " + root + "\nAlso includes recordings opened from other folders."
+            : "Recordings opened before are listed here. Select a game/profile on Record to discover its saved recordings.";
+        int incomplete = snapshot.Recent.Count(item => !string.IsNullOrEmpty(item.MetadataWarning));
+        CaptureLibraryStatus.Text = (snapshot.Recent.Count == 0 ? "No recordings found. Record gameplay or use Open capture to open a recording from another folder."
+            : $"{snapshot.Recent.Count} recordings · Select a row to open or compare.")
+            + (incomplete == 0 ? "" : $" {incomplete} recordings have unavailable metadata; hover over a row for details.")
+            + (snapshot.Warnings.Count == 0 ? "" : "\n" + string.Join("\n", snapshot.Warnings));
         PreviousComparisons.ItemsSource = snapshot.Comparisons;
-        PreviousComparisons.SelectedIndex = snapshot.Comparisons.Count > 0 ? 0 : -1;
+        PreviousComparisons.SelectedItem = snapshot.Comparisons.FirstOrDefault(item => item.BaselinePath == selectedPair?.BaselinePath && item.OtherPath == selectedPair?.OtherPath)
+            ?? snapshot.Comparisons.FirstOrDefault();
+        SavedComparisonPanel.Visibility = snapshot.Comparisons.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        SavedComparisonStatus.Text = snapshot.Comparisons.Count == 0 ? "No saved comparisons yet. Select two recordings above to create one."
+            : "Previously saved comparisons";
+        UpdateControls();
     }
+    private async void PageChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ReferenceEquals(e.Source, Tabs) && Tabs.SelectedIndex == 2 && historyEnabled && !busy)
+            await RunAsync(() => { RefreshHistory(); return Task.CompletedTask; });
+    }
+    private void CaptureSelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateControls();
+    private async void RefreshCaptureLibrary(object sender, RoutedEventArgs e) => await RunAsync(() => { RefreshHistory(); return Task.CompletedTask; });
+    private async void OpenSelectedCapture(object sender, RoutedEventArgs e) => await RunAsync(async () =>
+    {
+        if (ComparisonCaptures.SelectedItem is not RecentCapture selected) throw new InvalidOperationException("Select a recording first.");
+        await LoadCaptureAsync(selected.Path);
+    });
+    private async void CompareSelectedCapture(object sender, RoutedEventArgs e) => await RunAsync(async () =>
+    {
+        if (ComparisonCaptures.SelectedItem is not RecentCapture selected) throw new InvalidOperationException("Select a recording first.");
+        await CompareCaptureAsync(selected.Path);
+    });
     private async Task RestoreHistoryAsync()
     {
-        var snapshot = history.Read(preferredTarget?.ProfileDirectory);
+        var snapshot = history.Read(CaptureBaseDirectory);
         RefreshHistory();
         string? path = snapshot.LastOpened ?? snapshot.Recent.FirstOrDefault()?.Path;
         if (path is null) return;
@@ -363,7 +421,7 @@ public partial class MainWindow : Window
     private async Task RestoreComparisonAsync()
     {
         if (currentCapturePath is null) return;
-        SavedComparison? saved = history.Read(preferredTarget?.ProfileDirectory).Comparisons.FirstOrDefault(item =>
+        SavedComparison? saved = history.Read(CaptureBaseDirectory).Comparisons.FirstOrDefault(item =>
             string.Equals(item.BaselinePath, currentCapturePath, StringComparison.OrdinalIgnoreCase));
         if (saved is null) return;
         try { ApplySavedOptions(saved.Options); await ShowComparisonAsync(saved.OtherPath); }
@@ -424,10 +482,19 @@ public partial class MainWindow : Window
     {
         if (analysis is null) throw new InvalidOperationException("Open a baseline capture first.");
         var dialog = CaptureDialog(); if (dialog.ShowDialog(this) != true) return;
-        await ShowComparisonAsync(dialog.FileName);
-        history.RememberComparison(currentCapturePath!, dialog.FileName, analysis!.Options);
-        RefreshHistory();
+        await CompareCaptureAsync(dialog.FileName);
     });
+    private async Task CompareCaptureAsync(string path)
+    {
+        if (analysis is null || currentCapturePath is null) throw new InvalidOperationException("Open a baseline capture first.");
+        if (string.Equals(Path.GetFullPath(path), currentCapturePath, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Select a different recording to compare with the baseline.");
+        await ShowComparisonAsync(path);
+        history.RememberComparison(currentCapturePath, path, analysis.Options);
+        RefreshHistory();
+        Tabs.SelectedIndex = 2;
+        StatusText.Text = "Comparison loaded · Baseline and comparison saved for reopening";
+    }
     private async void OpenSavedComparison(object sender, RoutedEventArgs e) => await RunAsync(async () =>
     {
         if (PreviousComparisons.SelectedItem is not SavedComparison saved) throw new InvalidOperationException("Choose a previous comparison first.");
@@ -437,6 +504,7 @@ public partial class MainWindow : Window
         history.RememberComparison(saved.BaselinePath, saved.OtherPath, saved.Options);
         RefreshHistory();
         Tabs.SelectedIndex = 2;
+        StatusText.Text = "Previous comparison restored · Baseline and comparison loaded";
     });
     private async void ExportReport(object sender, RoutedEventArgs e) => await RunAsync(async () =>
     {
