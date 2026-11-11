@@ -1,5 +1,24 @@
 # Verification — 2026-11-10
 
+## Version 0.1.15 recorder preservation
+
+The preservation suite uses exact historical recorder binaries locally when supplied under `tests/Fixtures`. Those older binaries are not required in the public repository: without them, CI generates a metadata-version fixture from the current recorder and uses a managed assembly lacking recorder capabilities as the negative case. Exact prior-build checks and public generated-fixture checks are reported separately.
+
+The preserved census recorder and prior Core were compared as actual binaries.
+Recovered particle census/planning code, receipt capability and Begin/Sample/End/Save
+integration are restored, along with OnDisable cleanup and early unsupported-command
+rejection. Census and crypt selection/arm/snapshot masks are preserved through import,
+frame and complete method/CPU/GC/wait/disk association filters and redacted exports.
+Raw observations remain intact; invalid advertised masks exclude timing analysis.
+
+Recorder setup checks IL-connected capabilities and revision ordering, serializes
+per-profile installs, rejects changed preimages and records source/destination hashes,
+profile/app/process identity and exact backups. The original three-argument API remains.
+Exact preserved binary fixtures and behavioral tests cover downgrade refusal, equal
+revision refusal, raced preimages, transaction identity, planner guards and mask exports.
+Unity scene enumeration, gameplay and multiplayer still require native game validation;
+engine-free and Valheim Mono evidence do not establish those outcomes.
+
 ## Version 0.1.13 automatic collector setup
 
 Startup checks the Windows service registry before displaying any setup notice.

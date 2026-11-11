@@ -25,7 +25,7 @@ namespace ValheimPerformanceCompanion.Recorder;
 public sealed class RecorderPlugin : BaseUnityPlugin
 {
     public const string Id = "tools.valheim.performancecompanion";
-    public const string RecorderVersion = "0.1.13";
+    public const string RecorderVersion = "0.1.15";
     private static RecorderPlugin? instance;
     private static Terminal.ConsoleCommand? ownedCommand;
     private readonly CancellationTokenSource shutdown = new CancellationTokenSource();
@@ -109,6 +109,11 @@ public sealed class RecorderPlugin : BaseUnityPlugin
                 using var reader = new StreamReader(pipe, Encoding.UTF8, false, 1024, true);
                 using var writer = new StreamWriter(pipe, new UTF8Encoding(false), 1024, true) { AutoFlush = true };
                 string command = await ReadLine(reader, 2048, timeout.Token).ConfigureAwait(false);
+                if (!IsSupportedRecorderOperation(command))
+                {
+                    await writer.WriteLineAsync(Json(new StatusData { Protocol = 1, ProcessId = pid, Error = "Unknown recorder command." })).ConfigureAwait(false);
+                    continue;
+                }
                 bool readOnly = command == "hello" || command == "status";
                 if (readOnly && Stopwatch.GetTimestamp() - Volatile.Read(ref statusPublishedAt) > Stopwatch.Frequency)
                 {
@@ -144,6 +149,11 @@ public sealed class RecorderPlugin : BaseUnityPlugin
                 return;
             }
         }
+    }
+    private static bool IsSupportedRecorderOperation(string command)
+    {
+        string operation = command.Split('\t')[0];
+        return operation == "hello" || operation == "status" || operation == "start" || operation == "prepare" || operation == "begin" || operation == "stop";
     }
     private static async Task<string> ReadLine(StreamReader reader, int maximum, CancellationToken cancellation)
     {
@@ -277,6 +287,7 @@ public sealed class RecorderPlugin : BaseUnityPlugin
         using var buffer = new MemoryStream(); new DataContractJsonSerializer(value.GetType()).WriteObject(buffer, value);
         return Encoding.UTF8.GetString(buffer.ToArray());
     }
+    private void OnDisable() => Stop();
     private void OnDestroy()
     {
         shutdown.Cancel(); Stop();
@@ -325,7 +336,7 @@ internal sealed class Recording
         string inventory = string.Join("\n", Chainloader.PluginInfos.Values.Select(p => p.Metadata.GUID + "=" + p.Metadata.Version + "|" + p.Instance.GetType().Assembly.ManifestModule.ModuleVersionId).OrderBy(x => x));
         using var sha = SHA256.Create(); string fingerprint = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(inventory))).Replace("-", "");
         File.WriteAllText(Path.Combine(directory, "plugins.txt"), inventory, new UTF8Encoding(false));
-        receipt = new Receipt { Protocol = 1, SessionId = id, PluginVersion = RecorderPlugin.RecorderVersion, Mode = mode,
+        receipt = new Receipt { Protocol = 1, SessionId = id, PluginVersion = RecorderPlugin.RecorderVersion, Mode = mode, SupportsParticleCensus = Deep,
             StopwatchFrequency = Stopwatch.Frequency,
             ProfileFingerprint = fingerprint, GameVersion = typeof(Player).Assembly.GetName().Version?.ToString() ?? "unknown",
             UnityVersion = Application.unityVersion, Graphics = Screen.width + "x" + Screen.height + "; VSync=" + QualitySettings.vSyncCount + "; cap=" + Application.targetFrameRate + "; GPU=" + SystemInfo.graphicsDeviceName,
@@ -436,6 +447,7 @@ internal sealed class Recording
         [DataMember] public string SessionId { get; set; } = "";
         [DataMember] public string PluginVersion { get; set; } = "";
         [DataMember] public string Mode { get; set; } = "";
+        [DataMember] public bool SupportsParticleCensus { get; set; }
         [DataMember] public string StartUtc { get; set; } = "";
         [DataMember] public long StopwatchStart { get; set; }
         [DataMember] public long StopwatchFrequency { get; set; }

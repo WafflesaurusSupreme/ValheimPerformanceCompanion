@@ -9,6 +9,7 @@ public sealed record Frame(double Seconds, double Milliseconds, DateTimeOffset U
     public double? CpuMs { get; set; }
     public double? GpuMs { get; set; }
     public string Context { get; set; } = "";
+    public bool DiagnosticExcluded { get; set; }
 }
 public sealed record MethodWindow(string Name, double Start, double End, double MainMs, long Calls, int SampleEvery);
 public sealed record LogEvent(double? Seconds, string Category, string Message, int Line);
@@ -16,6 +17,7 @@ public sealed record Finding(string Title, string Confidence, string Evidence, s
 public sealed record Metrics(int Frames, double Duration, double AverageFps, double MedianMs, double P95Ms,
     double P99Ms, double OnePercentLow, double WorstMs, int LagSpikes, int RelativeSpikes, double OverBudgetSeconds,
     int ExcludedFrames);
+public sealed record DiagnosticExclusion(string SnapshotId, double StartSeconds, double EndSeconds, int StartFrame, int EndFrame, string Reason);
 public sealed class Capture
 {
     public string Directory { get; set; } = "";
@@ -31,6 +33,10 @@ public sealed class Capture
     public List<ThreadWait> Waits { get; } = [];
     public List<DiskObservation> Disk { get; } = [];
     public List<string> Warnings { get; } = [];
+    public List<DiagnosticExclusion> DiagnosticExclusions { get; } = [];
+    public bool DiagnosticExclusionsInvalid { get; set; }
+    public bool IsDiagnosticExcluded(double start, double end) => DiagnosticExclusionsInvalid
+        || DiagnosticExclusions.Any(exclusion => start <= exclusion.EndSeconds && end >= exclusion.StartSeconds);
     public Dictionary<string, string> Metadata { get; } = new(StringComparer.OrdinalIgnoreCase);
     public DateTimeOffset StartUtc { get; set; }
 }

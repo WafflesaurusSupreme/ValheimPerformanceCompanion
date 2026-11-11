@@ -1,4 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><TargetFramework>net10.0-windows</TargetFramework><OutputType>Exe</OutputType></PropertyGroup>
   <ItemGroup><ProjectReference Include="../../src/Companion.Core/Companion.Core.csproj" /></ItemGroup>
+  <ItemGroup>
+    <None Include="../Fixtures/*.dll" Link="Fixtures/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/Companion.Recorder/bin/Release/netstandard2.1/ValheimPerformanceCompanion.Recorder.dll" Link="Recorder/ValheimPerformanceCompanion.Recorder.dll" CopyToOutputDirectory="Always" />
+    <Compile Include="../../src/Companion.Recorder/ParticleCensusPlan.cs" Link="ParticleCensusPlan.cs" />
+  </ItemGroup>
 </Project>

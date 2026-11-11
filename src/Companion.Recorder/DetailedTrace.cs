@@ -51,6 +51,7 @@ internal sealed class DetailedTrace : IDisposable
         internal readonly long[][] CounterValues;
         internal readonly List<Window> Windows = new List<Window>(2400);
         internal readonly CharacterTrace Characters = new CharacterTrace();
+        internal ParticleCensus? Census;
         internal long Start, Utc;
         internal readonly int MainThread;
         internal int Count;
@@ -414,12 +415,14 @@ internal sealed class DetailedTrace : IDisposable
     internal void Prepare()
     {
         captured = new Session(names.Count, strides.ToArray(), capacity, counters.Count, 0, 0, mainThread);
+        captured.Census = new ParticleCensus(allocationSupported);
     }
     internal void Begin(long start, long utc)
     {
         foreach (Counter counter in counters) { counter.Recorder.Reset(); counter.Recorder.Start(); }
         if (captured == null) throw new InvalidOperationException("Deep session is not prepared.");
         captured.Start = captured.LastWindow = start; captured.Utc = utc;
+        captured.Census?.Begin(start);
         Volatile.Write(ref active, captured);
     }
 
@@ -459,6 +462,7 @@ internal sealed class DetailedTrace : IDisposable
             data.Environment = setup?.m_name;
             data.Wet = setup?.m_isWet ?? false;
         }
+        session.Census?.Sample(index, timestamp, player, data.Biome, data.Environment, data.Focus);
         data.Gc0 = GC.CollectionCount(0); data.Gc1 = GC.CollectionCount(1); data.Gc2 = GC.CollectionCount(2);
         for (int i = 0; i < counters.Count; i++)
             session.CounterValues[i][index] = counters[i].Recorder.Count == 0 ? long.MinValue : counters[i].Recorder.LastValue;
@@ -507,6 +511,7 @@ internal sealed class DetailedTrace : IDisposable
     internal void End()
     {
         Interlocked.Exchange(ref active, null);
+        captured?.Census?.End(Stopwatch.GetTimestamp());
         if (captured != null && captured.Start != 0 && captured.LastWindow != long.MaxValue)
         {
             long timestamp = Stopwatch.GetTimestamp();
@@ -570,6 +575,7 @@ internal sealed class DetailedTrace : IDisposable
                     }
             }
             session.Characters.Save(Path.Combine(directory, "characters.csv"), stamp => Timestamp(session, stamp), allocationSupported);
+            session.Census?.Save(directory);
             log.LogInfo("Detailed trace saved: " + session.Count + " frames and " + session.Windows.Count + " timing snapshots; suffix=" + suffix);
         }
         catch (Exception error) { log.LogError("Detailed trace save failed: " + error); throw; }

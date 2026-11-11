@@ -11,14 +11,16 @@ public static partial class DiagnosticAnalyzer
         var report = new DiagnosticReport(); report.Modules.AddRange(capture.Modules); report.Patches.AddRange(capture.Patches);
         report.Coverage.AddRange(capture.Warnings);
         report.Coverage.Add("Every detected interval is listed. Stack examples are ranked samples, not measured method durations. Method windows are inclusive and may span several frames.");
-        var samples = capture.CpuSamples.OrderBy(s => s.Seconds).ToArray();
+        var samples = capture.CpuSamples.Where(s => !capture.IsDiagnosticExcluded(s.Seconds, s.Seconds)).OrderBy(s => s.Seconds).ToArray();
         int main = int.TryParse(capture.Metadata.GetValueOrDefault("MainThreadId"), CultureInfo.InvariantCulture, out int tid) ? tid : 0;
         var code = capture.Code.GroupBy(c => c.Type + "." + c.Method, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.ToArray(), StringComparer.Ordinal);
         var usedCode = new HashSet<string>(StringComparer.Ordinal);
         var frames = capture.Frames.OrderBy(f => f.Seconds).ToArray();
         var previous = new Dictionary<int, Frame>();
-        for (int i = 1; i < frames.Length; i++) previous[frames[i].Index] = frames[i - 1];
-        var pauses = Pauses(capture.GcPhases);
+        for (int i = 1; i < frames.Length; i++)
+            if (!frames[i - 1].DiagnosticExcluded && !capture.IsDiagnosticExcluded(frames[i - 1].Seconds - frames[i - 1].Milliseconds / 1000, frames[i - 1].Seconds))
+                previous[frames[i].Index] = frames[i - 1];
+        var pauses = Pauses(capture.GcPhases).Where(p => !capture.IsDiagnosticExcluded(p.Start, p.End)).ToList();
         var gcFrames = analysis.Included.Where(f => previous.TryGetValue(f.Index, out Frame? old) && f.Gc0 > old.Gc0).ToArray();
         var gcSpikes = analysis.DetectedSpikes.Where(s => gcFrames.Any(f => f.Index == s.Frame.Index)).ToArray();
         if (gcFrames.Length > 0)
@@ -66,12 +68,12 @@ public static partial class DiagnosticAnalyzer
             bool gcCount = previous.TryGetValue(frame.Index, out Frame? prior) && frame.Gc0 > prior.Gc0;
             if (gcCount) evidence.Add("Collection count increased across this interval; this is not a measured pause length.");
             if (gcMs > 0) evidence.Add($"Native GC suspended-world intervals overlap {gcMs:F3} ms of this game-loop interval (union, without double counting). Stop/restart overhead is outside this measurement.");
-            var waits = capture.Waits.Where(w => w.ThreadId == main && w.Start < frame.Seconds && w.End > start).ToArray();
+            var waits = capture.Waits.Where(w => !capture.IsDiagnosticExcluded(w.Start, w.End) && w.ThreadId == main && w.Start < frame.Seconds && w.End > start).ToArray();
             if (waits.Length > 0) evidence.Add($"Main thread was off CPU for {UnionOverlap(waits.Select(w => (w.Start, w.End)), start, frame.Seconds) * 1000:F3} ms. Recorded switch-out states/reasons: {string.Join(", ", waits.Select(w => w.State + "/" + w.Reason).Distinct())}. This does not identify the lock owner or prove disk caused the wait.");
             else gaps.Add("No complete main-thread off-CPU intervals overlap; this is not proof that no wait occurred.");
-            var io = capture.Disk.Where(d => d.Seconds >= start && d.Seconds <= frame.Seconds).ToArray();
+            var io = capture.Disk.Where(d => !capture.IsDiagnosticExcluded(d.Seconds - Math.Max(0, d.DurationMs) / 1000, d.Seconds) && d.Seconds >= start && d.Seconds <= frame.Seconds).ToArray();
             if (io.Length > 0) evidence.Add($"{io.Length} process disk completions overlap; {io.Sum(d => d.Bytes)} bytes. Asynchronous I/O correlation is not evidence of main-thread blocking.");
-            var methods = capture.Methods.Where(m => m.Start < frame.Seconds && m.End > start && m.MainMs > 0).OrderByDescending(m => m.MainMs).Take(10).Select(m => new MethodEvidence(m.Name, m.Start, m.End, m.MainMs, m.Calls, m.SampleEvery)).ToArray();
+            var methods = capture.Methods.Where(m => !capture.IsDiagnosticExcluded(m.Start, m.End) && m.Start < frame.Seconds && m.End > start && m.MainMs > 0).OrderByDescending(m => m.MainMs).Take(10).Select(m => new MethodEvidence(m.Name, m.Start, m.End, m.MainMs, m.Calls, m.SampleEvery)).ToArray();
             if (methods.Length > 0) evidence.Add("Attached method costs cover overlapping multi-frame windows. Parent and child times must not be summed or assigned entirely to this interval.");
             if (stacks.All(s => s.CodeIds.Count == 0)) gaps.Add("No matching managed IL is available for these stack examples. Native addresses require matching symbols; old captures need the original loaded assemblies or a new code snapshot.");
             if (gcCount && gcMs == 0) gaps.Add("Native GC pause timing is unavailable for this interval.");

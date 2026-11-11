@@ -44,6 +44,25 @@ internal static class RecorderLateAttachProbe
         Task server = (Task)type.GetMethod("ServerLoop", flags).Invoke(plugin, null);
         try
         {
+            object queued = type.GetField("requests", flags).GetValue(plugin);
+            int before = (int)queued.GetType().GetProperty("Count").GetValue(queued, null);
+            using (var pipe = new NamedPipeClientStream(".", "ValheimPerformanceCompanion.Recorder." + pid, PipeDirection.InOut, PipeOptions.Asynchronous))
+            {
+                await pipe.ConnectAsync(1000);
+                using (var writer = new StreamWriter(pipe, new UTF8Encoding(false), 1024, true) { AutoFlush = true })
+                using (var reader = new StreamReader(pipe, Encoding.UTF8, false, 1024, true))
+                {
+                    await writer.WriteLineAsync("unsupported-operation\tfixture");
+                    Task<string> response = reader.ReadLineAsync();
+                    if (await Task.WhenAny(response, Task.Delay(2000)) != response || !(await response).Contains("Unknown recorder command."))
+                        throw new Exception("Unsupported commands were not rejected without a Unity update.");
+                }
+            }
+            if ((int)queued.GetType().GetProperty("Count").GetValue(queued, null) != before || (int)type.GetField("pendingMutations", flags).GetValue(plugin) != 0)
+                throw new Exception("Unsupported command entered the game-thread queue or mutation accounting.");
+            type.GetMethod("OnDisable", flags).Invoke(plugin, null);
+            type.GetMethod("OnDisable", flags).Invoke(plugin, null);
+            System.Console.WriteLine("PASS actual recorder early invalid-command rejection and idle disable cleanup on Valheim Mono");
             // No Unity Update is executed: a minimized/stalled game must still answer and reconnect.
             foreach (string command in new[] { "hello", "status", "hello" })
             using (var pipe = new NamedPipeClientStream(".", "ValheimPerformanceCompanion.Recorder." + pid, PipeDirection.InOut, PipeOptions.Asynchronous))

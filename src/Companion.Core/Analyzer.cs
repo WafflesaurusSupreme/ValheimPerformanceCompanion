@@ -7,7 +7,8 @@ public static class Analyzer
         if (!double.IsFinite(options.BudgetMs) || options.BudgetMs <= 0 || options.EndSeconds <= options.StartSeconds)
             throw new ArgumentException("Choose a positive frame budget and a valid time range.");
         Frame[] range = capture.Frames.Where(f => f.Seconds >= options.StartSeconds && f.Seconds <= options.EndSeconds && f.Milliseconds > 0).ToArray();
-        Frame[] included = range.Where(f => (!options.ExcludeUnfocused || f.Focused != false) && (!options.ExcludeMenus || f.HasPlayer != false)).ToArray();
+        Frame[] included = range.Where(f => !f.DiagnosticExcluded && !capture.IsDiagnosticExcluded(f.Seconds - f.Milliseconds / 1000, f.Seconds)
+            && (!options.ExcludeUnfocused || f.Focused != false) && (!options.ExcludeMenus || f.HasPlayer != false)).ToArray();
         double[] sorted = included.Select(f => f.Milliseconds).Order().ToArray();
         double duration = sorted.Sum() / 1000;
         int tail = Math.Max(1, (int)Math.Ceiling(sorted.Length * .01));
@@ -39,16 +40,17 @@ public static class Analyzer
         foreach (Frame frame in included.OrderByDescending(f => f.Milliseconds).Take(12))
         {
             double start = frame.Seconds - frame.Milliseconds / 1000;
-            var cpuGroup = capture.CpuSamples.Where(s => s.Seconds >= start && s.Seconds <= frame.Seconds).GroupBy(s => s.Leaf).OrderByDescending(g => g.Count()).FirstOrDefault();
+            var cpuGroup = capture.CpuSamples.Where(s => !capture.IsDiagnosticExcluded(s.Seconds, s.Seconds) && s.Seconds >= start && s.Seconds <= frame.Seconds).GroupBy(s => s.Leaf).OrderByDescending(g => g.Count()).FirstOrDefault();
             if (cpuGroup is not null && cpuGroup.Count() >= 3 && seen.Add("CPU:" + cpuGroup.Key))
                 findings.Add(new("CPU samples overlap a slow interval", "Associated", $"At {frame.Seconds:F3}s: {frame.Milliseconds:F1} ms game-loop interval. {cpuGroup.Count()} ETW samples have leaf {cpuGroup.Key}. Samples use the ETW absolute timestamp and recorder UTC anchor; they are not method durations or proof of cause.",
                     "Inspect the selected frame's call stacks and repeat the same scenario with one controlled change.", frame.Seconds));
-            MethodWindow? method = capture.Methods.Where(m => m.Start < frame.Seconds && m.End >= start && m.MainMs > 3).OrderByDescending(m => m.MainMs).FirstOrDefault();
+            MethodWindow? method = capture.Methods.Where(m => !capture.IsDiagnosticExcluded(m.Start, m.End) && m.Start < frame.Seconds && m.End >= start && m.MainMs > 3).OrderByDescending(m => m.MainMs).FirstOrDefault();
             if (method is not null && seen.Add(method.Name))
                 findings.Add(new("CPU work overlaps a slow frame", "Associated", $"At {frame.Seconds:F2}s: {frame.Milliseconds:F1} ms frame. {method.Name} measured {method.MainMs:F1} ms inclusive main-thread time across {method.End - method.Start:F3}s ({method.Calls} calls; sample every {method.SampleEvery}). This is a window, not exact per-frame attribution.",
                     "Repeat the same scenario with one controlled change; inspect the overlapping PerfView CPU stacks.", frame.Seconds));
             Frame? previous = capture.Frames.LastOrDefault(f => f.Seconds < frame.Seconds);
-            if (frame.Gc0 is int gc && previous?.Gc0 is int old && gc > old && seen.Add("gc"))
+            if (frame.Gc0 is int gc && previous?.Gc0 is int old && !previous.DiagnosticExcluded
+                && !capture.IsDiagnosticExcluded(previous.Seconds - previous.Milliseconds / 1000, previous.Seconds) && gc > old && seen.Add("gc"))
                 findings.Add(new("Garbage collection near a lag spike", "Associated", $"A collection-count increase overlaps the {frame.Milliseconds:F1} ms interval at {frame.Seconds:F2}s. This does not measure pause duration.", "Compare allocation-heavy activity in the same interval using a Deep capture.", frame.Seconds));
         }
         int errors = capture.Events.Count(e => e.Category == "Error");

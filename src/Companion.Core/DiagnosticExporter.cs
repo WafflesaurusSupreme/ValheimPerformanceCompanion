@@ -65,8 +65,8 @@ internal static class DiagnosticExporter
         int index = 0;
         foreach (CodeMethod method in analysis.Diagnostics.Code) Write("code/" + (++index).ToString("D5", CultureInfo.InvariantCulture) + ".il", ReportExporter.Redact(CodeText(method)));
         long total = 0;
-        string[] csvNames = ["frames.csv", "methods.csv", "details.csv", "characters.csv", "cpu-samples.csv", "gc-events.csv", "thread-waits.csv", "disk-io.csv", "modules.csv"];
-        string[] textNames = ["plugins.txt", "gc-capability.txt", "gc-quality.txt", "code-quality.txt", "collector-quality.txt", "capture-health.txt", "deep-quality.txt"];
+        string[] csvNames = ["frames.csv", "methods.csv", "details.csv", "characters.csv", "cpu-samples.csv", "gc-events.csv", "thread-waits.csv", "disk-io.csv", "modules.csv", "particle-census.csv", "particle-groups.csv", "particle-census-exclusions.csv", "crypt-snapshot-exclusions.csv"];
+        string[] textNames = ["plugins.txt", "gc-capability.txt", "gc-quality.txt", "code-quality.txt", "collector-quality.txt", "capture-health.txt", "deep-quality.txt", "particle-census-quality.json", "crypt-snapshot.json", "crypt-snapshot-quality.json"];
         if (Directory.Exists(analysis.Capture.Directory))
         foreach (string path in Directory.GetFiles(analysis.Capture.Directory).Where(p => csvNames.Contains(Path.GetFileName(p), StringComparer.OrdinalIgnoreCase) || textNames.Contains(Path.GetFileName(p), StringComparer.OrdinalIgnoreCase) || Path.GetFileName(p).StartsWith("coverage-", StringComparison.Ordinal) && p.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) || Path.GetFileName(p).StartsWith("patches-", StringComparison.Ordinal) && p.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)))
         {

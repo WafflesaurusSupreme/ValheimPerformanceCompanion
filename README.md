@@ -1,8 +1,8 @@
-# Valheim Performance Companion 0.1.13 installation candidate
+# Valheim Performance Companion 0.1.15 installation candidate
 
 A Windows x64 WPF companion with a standalone BepInEx recorder, PerfView capture, offline interpretation, comparison and report export. Data stays on your computer unless you export and share it yourself.
 
-0.1.13 checks for the collector service at startup. When it is missing, an on-screen explanation describes PerfView, system profiling permissions, privacy and the Monitor/offline fallback. The app automatically downloads the matching official GitHub release, verifies its SHA-256 identity and requests one administrator approval to install recording support. After setup, it opens the protected installed copy. Existing collectors do not display the setup explanation or trigger a download. The Compare recording table and previous-capture folder defaults from 0.1.12 are retained.
+0.1.15 restores the preserved particle census, diagnostic/crypt exclusion masks, raw diagnostic export, disable-time cleanup and early invalid-command rejection. Recorder setup rejects capability loss, older/equal differing revisions and stale preimages, and writes exact hash/backup transaction receipts. 0.1.13 checks for the collector service at startup. When it is missing, an on-screen explanation describes PerfView, system profiling permissions, privacy and the Monitor/offline fallback. The app automatically downloads the matching official GitHub release, verifies its SHA-256 identity and requests one administrator approval to install recording support. After setup, it opens the protected installed copy. Existing collectors do not display the setup explanation or trigger a download. The Compare recording table and previous-capture folder defaults from 0.1.12 are retained.
 
 Version 0.1.10 connects to a compatible recorder already running inside Valheim before checking recorder installation files. Read-only recorder replies remain available when Unity pauses its update loop. Native GC clock alignment from 0.1.9 is retained.
 It maps the Mono stopwatch capture anchor to the native QPC origin, preserving

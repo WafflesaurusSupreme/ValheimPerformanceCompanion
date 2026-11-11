@@ -17,6 +17,11 @@ internal static class RecorderContractsProbe
         };
         var assembly = Assembly.LoadFrom(args[0]);
         int failures = 0;
+        if (assembly.GetType("ValheimPerformanceCompanion.Recorder.ParticleCensus", false) == null
+            || assembly.GetType("ValheimPerformanceCompanion.Recorder.ParticleCensusPlan", false) == null
+            || assembly.GetType("ValheimPerformanceCompanion.Recorder.Recording+Receipt", true).GetProperty("SupportsParticleCensus") == null)
+        { Console.WriteLine("FAIL preserved particle census type/receipt contract"); failures++; }
+        else Console.WriteLine("PASS preserved particle census types and receipt capability on Valheim Mono");
         foreach (string name in new[] { "Recording+Receipt", "Recording+Completion", "Recording+ConfigurationReceipt", "RecorderPlugin+StatusData" })
         {
             try

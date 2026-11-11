@@ -123,6 +123,7 @@ public static partial class CaptureReader
         if (capture.Frames.All(f => f.Focused is null)) capture.Warnings.Add("Focus/player state is unavailable; automatic exclusions cannot be applied.");
         capture.Warnings.Add("Game-loop intervals are not display-presented frames. Method timings are inclusive and must not be summed.");
         DiagnosticReader.Read(capture, cancellation);
+        ReadDiagnosticExclusions(capture);
         return capture;
     }
     private static void ReadOptional(Capture capture, string file, Action<string> read)

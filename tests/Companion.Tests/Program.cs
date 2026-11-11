@@ -31,6 +31,8 @@ if (args.Length == 3 && args[0] == "--export-check")
 }
 string output = args.Length > 0 ? Path.GetFullPath(args[0]) : Path.Combine(Path.GetTempPath(), "ValheimCompanionTests-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(output);
+PreservationTests.Run(output);
+RecorderCapabilities FixtureCapabilities(string path) => new(new Version(File.ReadAllText(path).Contains("updated", StringComparison.Ordinal) ? "0.1.2" : "0.1.1"), Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))), true, true, true);
 int passed = 0, failed = 0;
 void Check(bool condition, string name) { if (!condition) throw new InvalidOperationException(name); }
 void Test(string name, Action body)
@@ -293,13 +295,13 @@ Test("Automatic setup is portable, idempotent and backs up an older recorder", (
     File.WriteAllText(Path.Combine(profile, "BepInEx", "core", "BepInEx.dll"), "fixture");
     string source = Path.Combine(bundle, "Recorder", RecorderSetup.FileName); File.WriteAllText(source, "new-recorder");
     var target = new GameTarget(root, profile, "fixture");
-    Check(RecorderSetup.Ensure(target, bundle, () => false).Ready, "Automatic installation");
+    Check(RecorderSetup.Ensure(target, bundle, () => false, FixtureCapabilities).Ready, "Automatic installation");
     string installed = Path.Combine(target.BepInExRoot, "plugins", "ValheimPerformanceCompanion", RecorderSetup.FileName);
     Check(File.ReadAllText(installed) == "new-recorder", "Copied bundle-relative source");
-    Check(RecorderSetup.Ensure(target, bundle, () => true).Ready, "Matching installed version needs no writes during gameplay");
+    Check(RecorderSetup.Ensure(target, bundle, () => true, FixtureCapabilities).Ready, "Matching installed version needs no writes during gameplay");
     File.WriteAllText(source, "updated-recorder");
-    Check(RecorderSetup.Ensure(target, bundle, () => true).WaitingForExit && File.ReadAllText(installed) == "new-recorder", "No update while game runs");
-    Check(RecorderSetup.Ensure(target, bundle, () => false).Ready && File.ReadAllText(installed) == "updated-recorder", "Update after exit");
+    Check(RecorderSetup.Ensure(target, bundle, () => true, FixtureCapabilities).WaitingForExit && File.ReadAllText(installed) == "new-recorder", "No update while game runs");
+    Check(RecorderSetup.Ensure(target, bundle, () => false, FixtureCapabilities).Ready && File.ReadAllText(installed) == "updated-recorder", "Update after exit");
     Check(File.ReadAllText(Directory.GetFiles(Path.Combine(target.BepInExRoot, "PerformanceCompanion", "RecorderBackups")).Single()) == "new-recorder", "Restorable backup");
 });
 Test("Missing recorder waits for game exit and install race preserves the target", () =>
@@ -309,9 +311,9 @@ Test("Missing recorder waits for game exit and install race preserves the target
     File.WriteAllText(Path.Combine(bundle, "Recorder", RecorderSetup.FileName), "fixture");
     File.WriteAllText(Path.Combine(profile, "BepInEx", "core", "BepInEx.dll"), "fixture");
     var target = new GameTarget(root, profile, "fixture"); string installed = Path.Combine(target.BepInExRoot, "plugins", "ValheimPerformanceCompanion", RecorderSetup.FileName);
-    Check(RecorderSetup.Ensure(target, bundle, () => true).WaitingForExit && !File.Exists(installed), "Missing recorder not installed into running game");
-    int checks = 0; Check(RecorderSetup.Ensure(target, bundle, () => ++checks > 1).WaitingForExit && !File.Exists(installed), "Game started during staging");
-    Check(RecorderSetup.Ensure(target, bundle, () => false).Ready, "Retry installs without deleting staged evidence");
+    Check(RecorderSetup.Ensure(target, bundle, () => true, FixtureCapabilities).WaitingForExit && !File.Exists(installed), "Missing recorder not installed into running game");
+    int checks = 0; Check(RecorderSetup.Ensure(target, bundle, () => ++checks > 1, FixtureCapabilities).WaitingForExit && !File.Exists(installed), "Game started during staging");
+    Check(RecorderSetup.Ensure(target, bundle, () => false, FixtureCapabilities).Ready, "Retry installs without deleting staged evidence");
 });
 Test("Refresh preserves the exact profile and finds its new PID", () =>
 {
